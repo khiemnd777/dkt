@@ -1,0 +1,7 @@
+APP_ENV=development
+# Optional locally. Production readiness requires both values and /api/health must report
+# turnstileProtected: true before sharing the public room-creation URL.
+VITE_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+# Optional. Keep this value secret; the Worker serves only the matching verification path.
+INDEXNOW_KEY=

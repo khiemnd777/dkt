@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "do-kinh-thanh-live",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-30",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "dokinhthanh.io.vn",
+      "zone_name": "dokinhthanh.io.vn",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.dokinhthanh.io.vn",
+      "zone_name": "dokinhthanh.io.vn",
+      "custom_domain": true
+    },
+    {
+      "pattern": "game.dokinhthanh.io.vn",
+      "zone_name": "dokinhthanh.io.vn",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "none",
+    "run_worker_first": [
+      "/api/*",
+      "/",
+      "/index.html",
+      "/app-shell.html",
+      "/create*",
+      "/join/*",
+      "/play/*",
+      "/host/*",
+      "/screen/*",
+      "/privacy*",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAME_ROOMS",
+        "class_name": "GameRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GameRoom"]
+    }
+  ],
+  "vars": {
+    "APP_ENV": "production",
+    "TURNSTILE_EXPECTED_ACTION": "create-room"
+  }
+}

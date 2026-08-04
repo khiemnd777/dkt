@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /preview/
+Disallow: /draft/
+Disallow: /_actions/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /preview/
+Disallow: /draft/
+Disallow: /_actions/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /preview/
+Disallow: /draft/
+Disallow: /_actions/
+
+User-agent: GPTBot
+Disallow: /
+
+Sitemap: https://dokinhthanh.io.vn/sitemap.xml

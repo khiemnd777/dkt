@@ -1,0 +1,48 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!!dist",
+      "!!node_modules",
+      "!!.wrangler",
+      "!!playwright-report",
+      "!!test-results",
+      "!!.lighthouseci",
+      "!!lighthouse-results",
+      "!!public/vi",
+      "!!public/en",
+      "!!public/site",
+      "!!public/social",
+      "!!public/sitemap.xml",
+      "!!public/llms.txt"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "style": {
+        "noDescendingSpecificity": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  }
+}
