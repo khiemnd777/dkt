@@ -2,29 +2,30 @@
 
 ## Live snapshot 2026-08-05
 
-- Production apex hiện vẫn là SPA cũ: root và `/vi/` trả cùng HTML 830 byte với HTTP 200.
-- `/sitemap.xml` hiện trả `text/html`; `game.dokinhthanh.io.vn` chưa resolve.
-- `robots.txt` đang bị Managed Content Signals prepend và chưa chứa policy/sitemap mới từ repository.
-- `bunx wrangler whoami` báo chưa authenticated; GitHub Actions chưa có Cloudflare secret/variable.
-- Workflow `Deploy production` và `bun run smoke:production` đã sẵn sàng nhưng cố ý không deploy khi credential thiếu.
+- Cloudflare Worker version `64748121-061c-487c-80e5-a4c99bedc523` đang chạy trên apex, `www` và `game` custom domain.
+- Production smoke pass: root 308 sang `/vi/`, `www` 301 sang apex, public unknown 404, missing room 410, API/noindex/no-store đúng policy.
+- Cả 26 sitemap URL trả 200 và self-canonical; sitemap, robots và llms có content type đúng.
+- `game.dokinhthanh.io.vn` đã resolve với HTTPS; `TURNSTILE_SECRET_KEY` và client site key hoạt động, health trả `turnstileProtected: true`.
+- Managed Content Signals vẫn prepend nhưng tương thích policy source: search được phép, OAI-SearchBot được phép, GPTBot bị chặn và sitemap hiện diện.
+- Wrangler local đã OAuth authenticated. GitHub environment `production` đã có Account ID và Turnstile site-key variable; còn thiếu API token scoped để auto-deploy không cần phiên local.
 
-Để mở khóa deploy tự động, thêm `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID` vào GitHub environment `production`, hoặc đăng nhập Wrangler trên máy phát hành. Token cần quyền Workers Scripts, Workers Routes/Custom Domains và Zone DNS phù hợp; không commit token.
+Để mở khóa deploy tự động, tạo API token giới hạn cho Worker/route/custom-domain cần thiết và lưu thành `CLOUDFLARE_API_TOKEN` trong GitHub environment `production`; không commit hoặc tái sử dụng OAuth token của Wrangler.
 
 ## DNS và domain
 
-- [ ] Apex `dokinhthanh.io.vn` active trên Worker hiện tại.
-- [ ] `www` active và redirect 301 một bước sang apex HTTPS.
-- [ ] Tạo/activate custom domain `game.dokinhthanh.io.vn` cho cùng Worker; tại audit 2026-08-04 DNS này chưa resolve.
-- [ ] SSL/TLS mode **Full (strict)**, Universal/valid certificate cho apex, www, game.
-- [ ] Không có Redirect Rule xung đột với Worker root `/ → /vi/` hoặc www canonicalization.
-- [ ] Kiểm tra Worker route/custom domain mapping sau deploy; không map một Pages SPA cũ lên apex.
+- [x] Apex `dokinhthanh.io.vn` active trên Worker hiện tại.
+- [x] `www` active và redirect 301 một bước sang apex HTTPS.
+- [x] `game.dokinhthanh.io.vn` active trên cùng Worker.
+- [x] HTTPS/certificate hợp lệ cho apex, www và game qua production smoke.
+- [x] Không có Redirect Rule xung đột với Worker root `/ → /vi/` hoặc www canonicalization.
+- [x] Worker route/custom domain mapping không còn phục vụ Pages SPA cũ trên apex.
 
 ## Managed robots/content signals
 
 - [ ] Dashboard → AI Crawl Control/Content Signals (tên mục có thể đổi) kiểm tra policy đang inject vào robots production.
-- [ ] Tránh để managed content thay thế/mâu thuẫn file repository. Policy đích: search allowed, OAI-SearchBot allowed, GPTBot disallowed.
-- [ ] Sau thay đổi, `curl https://dokinhthanh.io.vn/robots.txt` phải có sitemap và không có `Disallow: /` cho `*`/OAI-SearchBot.
-- [ ] Game robots không khai sitemap; crawler được phép nhận HTML noindex, API bị disallow.
+- [x] Managed content không thay thế/mâu thuẫn file repository: search allowed, OAI-SearchBot allowed, GPTBot disallowed.
+- [x] Robots production có sitemap và không có `Disallow: /` cho `*`/OAI-SearchBot.
+- [x] Game robots không khai sitemap; crawler được phép nhận HTML noindex, API bị disallow.
 
 ## Bot/WAF
 
@@ -37,20 +38,20 @@
 
 ## Cache và content types
 
-- [ ] Public HTML: `text/html`, cache revalidate/CDN an toàn; không noindex.
-- [ ] `/robots.txt`, `/llms.txt`: `text/plain; charset=utf-8`.
-- [ ] `/sitemap.xml`: `application/xml; charset=utf-8`.
+- [x] Public HTML: `text/html`, cache revalidate/CDN an toàn; không noindex.
+- [x] `/robots.txt`, `/llms.txt`: `text/plain; charset=utf-8`.
+- [x] `/sitemap.xml`: `application/xml; charset=utf-8`.
 - [ ] Hashed game assets: immutable; public site/social assets: finite CDN cache.
-- [ ] Operational HTML và API: `Cache-Control: no-store`; no private public-cache rule.
+- [x] Operational HTML và API: `Cache-Control: no-store`; no private public-cache rule.
 - [ ] Không cache response theo room/player ở Cache Rule hoặc Worker Cache API.
 
 ## Routing/status
 
-- [ ] Root apex 308 → `/vi/`; HTTP → HTTPS; www → apex; không chain/loop.
-- [ ] 26 sitemap URL trả 200/self-canonical.
-- [ ] Unknown apex URL trả 404, không homepage 200.
-- [ ] Builder/host/join/play/screen trả `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`.
-- [ ] Valid-shaped missing room trả 410; malformed route 404.
+- [x] Root apex 308 → `/vi/`; HTTPS www → apex một bước, không chain/loop.
+- [x] 26 sitemap URL trả 200/self-canonical.
+- [x] Unknown apex URL trả 404, không homepage 200.
+- [x] Builder/host/join/play/screen trả `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`.
+- [x] Valid-shaped missing room trả 410; malformed route 404.
 - [ ] Room title/code/player/answer không xuất hiện trong initial HTML/OG.
 
 ## Observability không xâm phạm riêng tư
