@@ -37,6 +37,7 @@
       "/host/*",
       "/screen/*",
       "/privacy*",
+      "/sw.js",
       "/robots.txt",
       "/sitemap.xml",
       "/llms.txt",
