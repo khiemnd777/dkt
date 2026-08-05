@@ -326,7 +326,7 @@ function renderFooter(page: PublicPage): string {
   </footer>`;
 }
 
-export function renderPage(page: PublicPage): string {
+export function renderPage(page: PublicPage, stylesheetHref = "/site/site.css"): string {
   const alternate = alternateFor(page);
   const labels = LABELS[page.locale];
   const canonical = absolute(page.path);
@@ -373,7 +373,7 @@ export function renderPage(page: PublicPage): string {
   <link rel="icon" href="/icons/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
-  <link rel="stylesheet" href="/site/site.css" />
+  <link rel="stylesheet" href="${escapeHtml(stylesheetHref)}" />
   <script type="application/ld+json">${schema}</script>
 </head>
 <body>

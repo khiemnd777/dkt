@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import sharp from "sharp";
@@ -87,12 +88,15 @@ async function main(): Promise<void> {
     rm(join(publicDirectory, "social"), { recursive: true, force: true }),
   ]);
 
+  const stylesheet = await readFile(join(root, "site/site.css"), "utf8");
+  const stylesheetVersion = createHash("sha256").update(stylesheet).digest("hex").slice(0, 12);
+  const stylesheetHref = `/site/site.css?v=${stylesheetVersion}`;
+
   for (const page of PUBLIC_PAGES) {
     const output = join(publicDirectory, page.path.slice(1), "index.html");
-    await writeUtf8(output, renderPage(page));
+    await writeUtf8(output, renderPage(page, stylesheetHref));
   }
 
-  const stylesheet = await readFile(join(root, "site/site.css"), "utf8");
   await Promise.all([
     writeUtf8(join(publicDirectory, "site/site.css"), stylesheet),
     writeUtf8(join(publicDirectory, "robots.txt"), PUBLIC_ROBOTS),
