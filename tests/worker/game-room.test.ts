@@ -26,6 +26,11 @@ const pageEnv = {
           headers: { "Content-Type": "text/plain; charset=utf-8" },
         });
       }
+      if (pathname === "/sw.js") {
+        return new Response("game-service-worker", {
+          headers: { "Content-Type": "application/javascript; charset=utf-8" },
+        });
+      }
       return new Response("Not found", { status: 404 });
     },
   } as unknown as Fetcher,
@@ -142,6 +147,21 @@ describe("host-aware indexing and status policy", () => {
     const gameApi = await pageRequest("game.dokinhthanh.io.vn", "/api/health");
     expect(gameApi.status).toBe(200);
     expect(gameApi.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("retires the legacy public service worker without changing the game worker", async () => {
+    const publicWorker = await pageRequest("dokinhthanh.io.vn", "/sw.js");
+    expect(publicWorker.status).toBe(200);
+    expect(publicWorker.headers.get("cache-control")).toBe("no-cache, no-store, must-revalidate");
+    expect(publicWorker.headers.get("content-type")).toContain("application/javascript");
+    expect(publicWorker.headers.get("service-worker-allowed")).toBe("/");
+    const cleanup = await publicWorker.text();
+    expect(cleanup).toContain("caches.delete");
+    expect(cleanup).toContain("registration.unregister");
+
+    const gameWorker = await pageRequest("game.dokinhthanh.io.vn", "/sw.js");
+    expect(gameWorker.status).toBe(200);
+    expect(await gameWorker.text()).toBe("game-service-worker");
   });
 });
 

@@ -61,7 +61,22 @@ await verify(`${PUBLIC_ORIGIN}/vi/`, {
 await verify(`${PUBLIC_ORIGIN}/en/`, {
   status: 200,
   contentType: "text/html",
-  bodyIncludes: ['<html lang="en">', `<link rel="canonical" href="${PUBLIC_ORIGIN}/en/"`],
+  bodyIncludes: [
+    '<html lang="en">',
+    `<link rel="canonical" href="${PUBLIC_ORIGIN}/en/"`,
+    "Create a Bible quiz and play together in real time",
+    'aria-label="Primary navigation"',
+  ],
+  bodyExcludes: [
+    "Tạo game Đố Kinh Thánh và chơi cùng nhau theo thời gian thực",
+    'aria-label="Điều hướng chính"',
+  ],
+});
+await verify(`${PUBLIC_ORIGIN}/sw.js`, {
+  status: 200,
+  contentType: "javascript",
+  bodyIncludes: ["caches.delete", "registration.unregister"],
+  bodyExcludes: ["precacheAndRoute", "createHandlerBoundToURL"],
 });
 await verify(`${PUBLIC_ORIGIN}/robots.txt`, {
   status: 200,

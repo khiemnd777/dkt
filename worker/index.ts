@@ -34,6 +34,20 @@ const PUBLIC_SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
 };
 
+// The game originally lived on the public origin and registered a root-scoped PWA worker.
+// Keep a host-aware retirement script at the same URL so returning browsers cannot let that
+// legacy worker answer `/en/` (or any other public navigation) with a cached document.
+const PUBLIC_SERVICE_WORKER_CLEANUP = `self.addEventListener("install",()=>self.skipWaiting());
+self.addEventListener("activate",event=>{event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.map(key=>caches.delete(key)));
+  await self.clients.claim();
+  const clients=await self.clients.matchAll({type:"window",includeUncontrolled:true});
+  await self.registration.unregister();
+  await Promise.all(clients.map(client=>client.navigate(client.url)));
+})());});
+`;
+
 const GAME_ROBOTS_DIRECTIVE = "noindex, nofollow, noarchive, nosnippet";
 
 function withHeaders(response: Response, headers: HeadersInit): Response {
@@ -184,6 +198,18 @@ async function routePublicPage(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (request.method !== "GET" && request.method !== "HEAD") return errorHtml(404, "vi");
   if (url.pathname === "/") return redirect(`${url.origin}/vi/`);
+  if (url.pathname === "/sw.js") {
+    return withHeaders(
+      new Response(request.method === "HEAD" ? null : PUBLIC_SERVICE_WORKER_CLEANUP, {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Service-Worker-Allowed": "/",
+        },
+      }),
+      PUBLIC_SECURITY_HEADERS,
+    );
+  }
   if (url.pathname === "/privacy" || url.pathname === "/privacy/") {
     return redirect(`${url.origin}/vi/quyen-rieng-tu-va-vong-doi-du-lieu/`);
   }
@@ -211,6 +237,10 @@ async function routePublicPage(request: Request, env: Env): Promise<Response> {
   } else if (url.pathname === "/sitemap.xml") {
     headers["Content-Type"] = "application/xml; charset=utf-8";
     headers["Cache-Control"] = "public, max-age=3600";
+  } else if (url.pathname.startsWith("/en/")) {
+    headers["Content-Language"] = "en";
+  } else if (url.pathname.startsWith("/vi/")) {
+    headers["Content-Language"] = "vi";
   }
   return withHeaders(response, headers);
 }

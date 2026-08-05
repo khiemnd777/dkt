@@ -24,6 +24,20 @@ test("public HTML is crawlable without hydration and unknown URLs are real 404s"
       "https://dokinhthanh.io.vn/en/",
     );
 
+    const englishResponse = await page.goto("/en/");
+    expect(englishResponse?.status()).toBe(200);
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "Create a Bible quiz and play together in real time",
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "https://dokinhthanh.io.vn/en/",
+    );
+
     const missing = await request.get("/not-a-public-or-game-route");
     expect(missing.status()).toBe(404);
   } finally {
