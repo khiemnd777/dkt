@@ -112,7 +112,7 @@ Kết quả này là laboratory/local CI, được re-validate ngày 2026-08-05;
 
 ### Bằng chứng production hiện tại
 
-Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy hotfix canonical `www` từ commit `3f74428`. Cloudflare version hiện tại là `64748121-061c-487c-80e5-a4c99bedc523`:
+Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy hotfix canonical `www` từ commit `3f74428`. GitHub Actions tiếp tục deploy thành công bằng environment secret scoped; Cloudflare version hiện tại là `512eb86a-7646-4e98-8714-1081a0455c41`:
 
 - `GET /` trả 308 sang `/vi/`; `www` trả 301 một bước sang apex. Public unknown URL trả 404 thật.
 - `/vi/`, `/en/` và toàn bộ 26 sitemap URL trả 200/self-canonical; sitemap trả XML.
@@ -120,10 +120,11 @@ Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy ho
 - `game.dokinhthanh.io.vn` resolve với HTTPS; operational HTML noindex/no-store, missing valid room 410 và API health trả JSON/no-store.
 - Worker có `TURNSTILE_SECRET_KEY`, client build có production site key và health xác nhận `turnstileProtected: true`.
 - `bun run smoke:production` pass toàn bộ 13 gate sau deploy.
+- [Deploy run 30970621576](https://github.com/khiemnd777/dkt/actions/runs/30970621576) xác nhận GitHub Actions có thể build, upload Worker, cập nhật triggers và chạy smoke mà không cần Wrangler local.
 
 ### Giới hạn cần quyền ngoài repository
 
-- GitHub environment `production` đã có Cloudflare Account ID và Turnstile site-key variable. Còn cần một API token scoped riêng cho `CLOUDFLARE_API_TOKEN`; không trích hoặc tái sử dụng OAuth token của Wrangler.
+- GitHub environment `production` đã có Cloudflare Account ID, Turnstile site-key variable và account token `github-dkt-production-deploy` trong `CLOUDFLARE_API_TOKEN`. Policy zone giới hạn cho `dokinhthanh.io.vn`; token hết hạn ngày 2027-08-06 và cần được xoay trước thời điểm đó.
 - Search Console, Bing, CrUX và WAF/bot logs vẫn không khả dụng; không thể tự tạo verification token, field data hoặc claim index/ranking.
 - Tên author/reviewer/publisher vẫn được bỏ khỏi schema cho đến khi một người thật đồng ý công bố. Kênh correction không phụ thuộc vào các identity này.
 
@@ -136,10 +137,10 @@ Re-validation local ngày 2026-08-05 đã pass 28 unit tests, 8 Worker integrati
 | Production SPA cũ/soft-404/sitemap sai content type | **Đã đóng.** Production smoke pass; 26 sitemap URL trả 200/self-canonical. | Theo dõi CI/smoke ở các release sau. |
 | `game.dokinhthanh.io.vn` chưa resolve/có certificate | **Đã đóng.** Custom domain HTTPS hoạt động và operational routes noindex/no-store. | Theo dõi certificate/domain health. |
 | Managed Content Signals biến đổi `robots.txt` | **Đã kiểm chứng tương thích.** Search/OAI được phép, GPTBot bị chặn và sitemap hiện diện. | Dashboard review vẫn cần nếu owner muốn đổi policy bản quyền/AI. |
-| GitHub auto-deploy chưa có API token scoped | Local Wrangler deploy hoạt động; Account ID/site key đã cấu hình trên environment. | Tạo token giới hạn và lưu trực tiếp thành `CLOUDFLARE_API_TOKEN`. |
+| GitHub auto-deploy chưa có API token scoped | **Đã đóng.** Environment có token riêng, policy zone giới hạn cho `dokinhthanh.io.vn`; deploy và smoke qua Actions đã pass. | Xoay token trước 2027-08-06 và theo dõi workflow ở các release sau. |
 | Không có Search Console/Bing/CrUX/field INP | Không tạo số liệu hoặc verification token giả. | Owner cấp property access/TXT verification; thu dữ liệu thật sau deploy. |
 | Không có WAF/bot/production quota evidence | Local security tests và load 100 người pass, nhưng không suy diễn thành capacity production. | Review Cloudflare analytics/WAF aggregate; canary/load phù hợp chính sách Free tier. |
 | Chưa có RUM/analytics | Cố ý chưa triển khai để tránh retention/consent và room-data leakage không được duyệt. | Chọn provider, retention, consent và schema aggregate trước khi thêm. |
 | Author/reviewer/publisher chưa xác minh | Không phát hành identity giả trong schema. GitHub Issues là correction channel thực. | Người thật đồng ý tên/vai trò công khai trước khi bổ sung structured data. |
 
-Không còn blocker mã nguồn hoặc production routing đã biết. Các mục chưa đóng là API token cho unattended deploy, quyền Search Console/Bing/WAF, field evidence, RUM policy và identity công khai; không tạo hoặc suy diễn dữ liệu giả để đóng các mục này.
+Không còn blocker mã nguồn, production routing hoặc unattended deploy đã biết. Các mục chưa đóng là quyền Search Console/Bing/WAF, field evidence, RUM policy và identity công khai; không tạo hoặc suy diễn dữ liệu giả để đóng các mục này.
