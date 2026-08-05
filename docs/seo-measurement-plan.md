@@ -24,7 +24,7 @@ Nếu đo CTA/language switch trên public site, event chỉ gồm tên event, l
 
 ## Laboratory và CI
 
-- `bun run test:lighthouse` chạy 5 route public; target Performance ≥90, Accessibility ≥95, Best Practices ≥95, SEO 100, LCP ≤2.5s, CLS ≤0.1, TBT ≤300ms.
+- `bun run test:lighthouse` chạy 5 route public, ba lần mỗi route và assert theo median để một lần runner nhiễu không tạo false negative; target Performance ≥90, Accessibility ≥95, Best Practices ≥95, SEO 100, LCP ≤2.5s, CLS ≤0.1, TBT ≤300ms.
 - Lab LCP/TBT không chứng minh field INP. INP target p75 ≤200ms chỉ được báo khi có dữ liệu trường hợp lệ.
 - `bun run test:seo` kiểm tra title, description, H1, canonical, hreflang, JSON-LD, links, sitemap, robots, llms và basic accessibility semantics.
 
