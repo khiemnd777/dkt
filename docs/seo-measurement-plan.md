@@ -28,15 +28,15 @@ Nếu đo CTA/language switch trên public site, event chỉ gồm tên event, l
 - Lab LCP/TBT không chứng minh field INP. INP target p75 ≤200ms chỉ được báo khi có dữ liệu trường hợp lệ.
 - `bun run test:seo` kiểm tra title, description, H1, canonical, hreflang, JSON-LD, links, sitemap, robots, llms và basic accessibility semantics.
 
-Lần chạy cuối ngày 2026-08-04 trên local production preview:
+Lần chạy cuối ngày 2026-08-05 trên local production preview:
 
 | URL mẫu | Performance / Accessibility / Best Practices / SEO | LCP | CLS | TBT |
 | --- | --- | --- | --- | --- |
 | `/vi/` | 100 / 100 / 100 / 100 | 912 ms | 0 | 0 ms |
-| `/en/` | 100 / 100 / 100 / 100 | 908 ms | 0 | 0 ms |
+| `/en/` | 100 / 100 / 100 / 100 | 907 ms | 0 | 0 ms |
 | `/vi/tinh-nang/` | 100 / 100 / 100 / 100 | 906 ms | 0 | 0 ms |
 | `/en/guides/create-a-bible-quiz/` | 100 / 100 / 100 / 100 | 906 ms | 0 | 0 ms |
-| `/vi/cau-hoi-thuong-gap/` | 100 / 100 / 100 / 100 | 905 ms | 0 | 0 ms |
+| `/vi/cau-hoi-thuong-gap/` | 100 / 100 / 100 / 100 | 907 ms | 0 | 0 ms |
 
 Các số trên chỉ là lab evidence của một lần chạy, được làm tròn đến mili giây; không dùng thay cho CrUX/RUM p75 sau deploy.
 
@@ -50,6 +50,8 @@ Nếu cần field data khi CrUX chưa đủ mẫu:
 4. Không gửi full URL/query/referrer chứa data; chỉ allowlist 26 canonical paths.
 5. Lấy mẫu thấp; không tạo identifier bền vững hoặc cross-site cookie.
 6. Document retention và provider trước khi bật.
+
+Không bật endpoint RUM chỉ để loại bỏ trạng thái “not yet available”: repository chưa có provider, retention policy hoặc consent decision. Thêm một endpoint không có nơi lưu/kiểm soát retention sẽ tạo rủi ro quyền riêng tư nhưng không tạo field evidence đáng tin cậy. Search Console/CrUX hoặc một provider được owner phê duyệt vẫn là điều kiện ngoài repository.
 
 ## Diễn giải AIEO
 

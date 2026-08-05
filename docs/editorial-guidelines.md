@@ -45,9 +45,9 @@ AI có thể hỗ trợ outline, kiểm tra consistency và localization. Ngư�
 2. Nếu có rủi ro thần học/pháp lý/quyền riêng tư, chuyển draft/noindex hoặc gỡ khỏi sitemap ngay trong cùng release.
 3. Sửa source registry, alternate, schema và docs liên quan.
 4. Cập nhật `dateModified` thật và chạy toàn bộ gate.
-5. Khi có contact thật, ghi nhận yêu cầu, phản hồi phạm vi sửa và không lưu dữ liệu người báo cáo quá nhu cầu.
+5. Ghi nhận yêu cầu qua GitHub Issues, phản hồi phạm vi sửa và không lưu dữ liệu người báo cáo quá nhu cầu.
 
-Hiện chưa có kênh contact công khai được cấu hình. Không được invent email; đây là bước owner phải hoàn tất thủ công.
+Kênh sửa lỗi công khai là `https://github.com/khiemnd777/dkt/issues/new`. Không yêu cầu hoặc đưa mã phòng, token, tên người chơi, câu hỏi riêng hay dữ liệu phiên vào issue. Không invent email hoặc danh tính reviewer.
 
 ## 7. Những cách bị cấm
 

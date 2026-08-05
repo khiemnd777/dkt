@@ -2,6 +2,7 @@ export const SITE = {
   name: "Đố Kinh Thánh Live",
   baseUrl: "https://dokinhthanh.io.vn",
   gameUrl: "https://game.dokinhthanh.io.vn",
+  correctionUrl: "https://github.com/khiemnd777/dkt/issues/new",
   defaultLocale: "vi",
   locales: ["vi", "en"],
   logo: "/icons/icon.svg",

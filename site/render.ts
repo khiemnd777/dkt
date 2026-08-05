@@ -23,6 +23,7 @@ const LABELS = {
     about: "Giới thiệu",
     editorial: "Chính sách biên tập",
     privacy: "Quyền riêng tư & dữ liệu",
+    corrections: "Báo lỗi nội dung",
     product: "Sản phẩm",
     trust: "Thông tin",
   },
@@ -46,6 +47,7 @@ const LABELS = {
     about: "About",
     editorial: "Editorial policy",
     privacy: "Privacy & data",
+    corrections: "Report a content issue",
     product: "Product",
     trust: "Information",
   },
@@ -319,6 +321,7 @@ function renderFooter(page: PublicPage): string {
       <a href="${vi ? "/vi/gioi-thieu/" : "/en/about/"}">${labels.about}</a>
       <a href="${vi ? "/vi/chinh-sach-bien-tap/" : "/en/editorial-policy/"}">${labels.editorial}</a>
       <a href="${vi ? "/vi/quyen-rieng-tu-va-vong-doi-du-lieu/" : "/en/privacy-and-data-lifecycle/"}">${labels.privacy}</a>
+      <a href="${SITE.correctionUrl}">${labels.corrections}</a>
     </nav>
   </footer>`;
 }

@@ -77,6 +77,9 @@ describe("static SEO and AIEO publishing gates", () => {
       }
       expect(document.querySelector('a[href="#main-content"]')).not.toBeNull();
       expect(document.querySelectorAll("nav[aria-label]").length).toBeGreaterThan(1);
+      expect(
+        document.querySelector(`a[href="${SITE.correctionUrl}"]`)?.textContent?.trim().length,
+      ).toBeGreaterThan(0);
     }
   });
 

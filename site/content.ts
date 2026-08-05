@@ -1,6 +1,6 @@
 import type { PublicPage } from "./types";
 
-const REVIEW_DATE = "2026-08-04";
+const REVIEW_DATE = "2026-08-05";
 
 const vi = (page: Omit<PublicPage, "locale" | "dateModified" | "ogImageAlt">): PublicPage => ({
   ...page,
@@ -579,7 +579,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Ngày và sửa lỗi",
         paragraphs: [
           "datePublished là ngày xuất bản thật; dateModified chỉ đổi khi nội dung thay đổi đáng kể, không đổi theo mỗi build. Khi phát hiện lỗi, tạm gỡ nội dung có rủi ro, sửa nguồn, cập nhật ngày và ghi lại phạm vi chỉnh sửa trong lịch sử repository.",
-          "Repository hiện chưa cấu hình kênh liên hệ công khai; không hiển thị địa chỉ giả. Chủ sở hữu cần thêm phương thức liên hệ thật trước khi quảng bá quy trình tiếp nhận sửa lỗi bên ngoài.",
+          "Dự án tiếp nhận báo lỗi nội dung qua GitHub Issues công khai. Không gửi mã phòng, token, tên người chơi, câu hỏi riêng hoặc dữ liệu phiên vào issue; repository không hiển thị email hay danh tính người duyệt khi chưa có sự đồng ý công bố.",
         ],
       },
       {
@@ -1208,7 +1208,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Dates and corrections",
         paragraphs: [
           "datePublished records real publication; dateModified changes only after a material edit, not on each build. If an error is found, remove risky material, correct the source, update the date, and preserve the change in repository history.",
-          "The repository does not yet configure a public contact channel, so this page does not invent one. The owner should add a real method before advertising an external correction intake process.",
+          "The project accepts content corrections through public GitHub Issues. Do not include room codes, tokens, player names, private questions, or session data in an issue; the site does not publish reviewer identities or email addresses without consent.",
         ],
       },
       {

@@ -1,5 +1,15 @@
 # Checklist Cloudflare cho SEO/AIEO
 
+## Live snapshot 2026-08-05
+
+- Production apex hiện vẫn là SPA cũ: root và `/vi/` trả cùng HTML 830 byte với HTTP 200.
+- `/sitemap.xml` hiện trả `text/html`; `game.dokinhthanh.io.vn` chưa resolve.
+- `robots.txt` đang bị Managed Content Signals prepend và chưa chứa policy/sitemap mới từ repository.
+- `bunx wrangler whoami` báo chưa authenticated; GitHub Actions chưa có Cloudflare secret/variable.
+- Workflow `Deploy production` và `bun run smoke:production` đã sẵn sàng nhưng cố ý không deploy khi credential thiếu.
+
+Để mở khóa deploy tự động, thêm `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID` vào GitHub environment `production`, hoặc đăng nhập Wrangler trên máy phát hành. Token cần quyền Workers Scripts, Workers Routes/Custom Domains và Zone DNS phù hợp; không commit token.
+
 ## DNS và domain
 
 - [ ] Apex `dokinhthanh.io.vn` active trên Worker hiện tại.

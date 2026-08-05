@@ -20,6 +20,7 @@
     "test:lighthouse": "lhci autorun",
     "test:uat": "playwright test e2e/uat.spec.ts",
     "test:load": "bun scripts/load-test.ts",
+    "smoke:production": "bun scripts/smoke-production.ts",
     "deploy": "bun run build && wrangler deploy",
     "check:free-tier": "bun scripts/check-free-tier.ts",
     "indexnow": "bun scripts/indexnow.ts"

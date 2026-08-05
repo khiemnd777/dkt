@@ -1,0 +1,48 @@
+name: Content correction / Sửa lỗi nội dung
+description: Report a factual, localization, Scripture-reference, or public-documentation issue.
+title: "content: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cảm ơn bạn đã giúp cải thiện nội dung công khai. Please report public-content issues only.
+
+        Không gửi mã phòng, token, tên người chơi, câu hỏi riêng, đáp án, ảnh chụp phiên chơi hoặc dữ liệu cá nhân. Do not include room/session/private game data.
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Ngôn ngữ / Language
+      options:
+        - Tiếng Việt
+        - English
+        - Cả hai / Both
+    validations:
+      required: true
+  - type: input
+    id: public_url
+    attributes:
+      label: Public page URL
+      placeholder: https://dokinhthanh.io.vn/vi/...
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: Nội dung cần sửa / What should be corrected?
+      description: Quote only the minimum public text needed to identify the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Nguồn kiểm chứng / Supporting source
+      description: Add a public reference, Scripture citation, translation/license note, or reproducible product evidence when applicable.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: Tôi xác nhận issue này không chứa mã phòng, token, tên người chơi hoặc dữ liệu phiên riêng tư.
+          required: true

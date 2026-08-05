@@ -47,7 +47,7 @@ export default defineConfig({
   // transformIndexHtml refresh preamble is not injected. Disable HMR to keep the dev shell valid.
   server: { hmr: false },
   build: {
-    sourcemap: true,
+    sourcemap: process.env.SOURCE_MAPS === "true",
     target: "es2022",
   },
 });

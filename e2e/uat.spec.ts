@@ -325,7 +325,9 @@ test("UAT — host can pause beyond the deadline, reload, resume, and preserve t
     await player.waitForTimeout(5_500);
     await expect(player.getByRole("heading", { name: "Người dẫn đã tạm dừng" })).toBeVisible();
     await host.reload();
-    await host.getByRole("button", { name: "Tiếp tục câu hỏi" }).click();
+    const resume = host.getByRole("button", { name: "Tiếp tục câu hỏi" });
+    await expect(resume).toBeEnabled();
+    await resume.click();
     await expect(answer).toHaveClass(/selected/u);
     await player.getByRole("button", { name: /Gửi câu trả lời/ }).click();
     await expect(player.getByText("Đã ghi nhận câu trả lời")).toBeVisible();

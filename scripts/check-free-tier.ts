@@ -16,6 +16,37 @@ function filesUnder(directory: string): string[] {
   });
 }
 
+function initialClientJavaScript(): { files: string[]; gzipBytes: number } {
+  const clientRoot = join(root, "dist/client");
+  const htmlPath = join(clientRoot, "index.html");
+  if (!existsSync(htmlPath)) return { files: [], gzipBytes: 0 };
+  const html = readFileSync(htmlPath, "utf8");
+  const entry = /<script[^>]+type=["']module["'][^>]+src=["']([^"']+\.js)["']/u.exec(html)?.[1];
+  if (!entry) return { files: [], gzipBytes: 0 };
+
+  const pending = [join(clientRoot, entry.replace(/^\//u, ""))];
+  const visited = new Set<string>();
+  while (pending.length > 0) {
+    const path = pending.pop();
+    if (!path || visited.has(path) || !existsSync(path)) continue;
+    visited.add(path);
+    const source = readFileSync(path, "utf8");
+    for (const match of source.matchAll(
+      /\bimport(?:[^"']*?\bfrom\s*)?["'](\.\/[^"']+\.js)["']/gu,
+    )) {
+      pending.push(join(path.slice(0, path.lastIndexOf("/")), match[1]));
+    }
+  }
+
+  return {
+    files: [...visited],
+    gzipBytes: [...visited].reduce(
+      (total, path) => total + gzipSync(readFileSync(path)).byteLength,
+      0,
+    ),
+  };
+}
+
 const wranglerText = readFileSync(join(root, "wrangler.jsonc"), "utf8");
 const wrangler = JSON.parse(
   wranglerText.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, ""),
@@ -110,7 +141,18 @@ if (!workerCandidates.length) {
 }
 
 const staticFiles = filesUnder("dist/client");
+const initialJavaScript = initialClientJavaScript();
 notes.push(`Generated static assets: ${staticFiles.length}`);
+if (initialJavaScript.files.length === 0) {
+  fail("Could not identify the initial game JavaScript entrypoint.");
+} else {
+  notes.push(
+    `Initial game JavaScript: ${(initialJavaScript.gzipBytes / 1024).toFixed(2)} KiB gzip across ${initialJavaScript.files.length} static chunk(s)`,
+  );
+  if (initialJavaScript.gzipBytes > 100 * 1024) {
+    fail("Initial game JavaScript exceeds the 100 KiB gzip safety target.");
+  }
+}
 notes.push("Forbidden bindings: none detected");
 notes.push("Selective Worker routing: API and operational game HTML only");
 notes.push("Public unknown-route policy: no global SPA fallback");

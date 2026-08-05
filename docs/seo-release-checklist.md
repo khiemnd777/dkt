@@ -1,6 +1,6 @@
 # Checklist phát hành SEO + AIEO
 
-Local verification ngày 2026-08-04 đã pass typecheck, lint, 28 unit tests, 8 Worker tests, 32 E2E tests, load UAT 100 người, build, free-tier gate, Lighthouse 5 URL và Wrangler deploy dry-run. Các checkbox dưới đây vẫn để trống vì mỗi release và mọi bước DNS/dashboard/production phải được người phát hành xác nhận lại.
+Local verification ngày 2026-08-05 đã pass typecheck, lint, 28 unit tests, 8 Worker tests, 32 E2E tests, load UAT 100 người, build, free-tier gate, Lighthouse 5 URL và Wrangler deploy dry-run. Worker đạt 40.41 KiB gzip; initial game JavaScript đạt 76.82 KiB gzip; Lighthouse đạt 100/100 ở bốn category với LCP 906–912 ms, CLS 0 và TBT 0. Các checkbox dưới đây vẫn để trống vì mỗi release và mọi bước DNS/dashboard/production phải được người phát hành xác nhận lại.
 
 ## Trước deploy
 

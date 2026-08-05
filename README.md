@@ -140,6 +140,7 @@ bun run test:seo
 bun run test:lighthouse
 bun run test:uat
 bun run test:load
+bun run smoke:production
 bun run build
 bun run check:free-tier
 bunx wrangler deploy --dry-run
@@ -147,7 +148,7 @@ bunx wrangler deploy --dry-run
 
 `test:worker` chạy trong Cloudflare Workers Vitest/Miniflare. `test:e2e` chạy bộ gameplay chính trên Chromium và UAT trên Chromium, Firefox, WebKit, Chrome mobile và Safari mobile. `test:uat` chạy ma trận UAT về draft/PWA, tải–nhập cấu hình giữa hai phiên thiết bị, pause/recovery và feedback. `test:load` khởi động local Cloudflare runtime, burst tối đa 100 join + WebSocket + answer và luôn xóa phòng test; không bắn load test vào production. CI chạy local emulation, build, free-tier audit và dry-run; không tạo remote rooms.
 
-`check:free-tier` thất bại nếu phát hiện forbidden binding/dependency, global Worker-first routing, global SPA fallback gây soft 404, thiếu SQLite migration/ASSETS binding, localStorage/IndexedDB room persistence, HTTP polling, server timer tick hoặc Worker bundle vượt mục tiêu an toàn 2.5 MB gzip.
+`check:free-tier` thất bại nếu phát hiện forbidden binding/dependency, global Worker-first routing, global SPA fallback gây soft 404, thiếu SQLite migration/ASSETS binding, localStorage/IndexedDB room persistence, HTTP polling, server timer tick, Worker bundle vượt mục tiêu an toàn 2.5 MB gzip hoặc initial game JavaScript vượt 100 KiB gzip. Các route game nặng được lazy-load; build production mặc định không upload source map, có thể bật chủ động bằng `SOURCE_MAPS=true`.
 
 ## Build và deploy
 
@@ -164,6 +165,8 @@ https://do-kinh-thanh-live.<your-subdomain>.workers.dev
 ```
 
 Production đã khai báo apex, `www` và `game` custom domain trong Wrangler. Cần activate DNS/certificate cho `game` trong Cloudflare dashboard trước cutover. Không bật Workers Paid hoặc thêm service binding khác để vận hành kiến trúc hiện tại.
+
+Workflow `Deploy production` tự chạy sau CI trên `main` khi environment `production` có `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID`; nếu thiếu, workflow ghi rõ “Deployment skipped” và không gọi Cloudflare. Sau deploy, workflow chạy `smoke:production` để kiểm tra redirects, public HTML, crawler files, 404/410, noindex, cache và API content type. `VITE_TURNSTILE_SITE_KEY` là repository/environment variable tùy chọn; Worker secret vẫn phải được lưu trực tiếp bằng Wrangler.
 
 ## Bảo mật
 
