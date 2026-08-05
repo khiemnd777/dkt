@@ -112,7 +112,7 @@ Kết quả này là laboratory/local CI, được re-validate ngày 2026-08-05;
 
 ### Bằng chứng production hiện tại
 
-Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy hotfix canonical `www` từ commit `3f74428`. GitHub Actions tiếp tục deploy thành công bằng environment secret scoped; Cloudflare version hiện tại là `512eb86a-7646-4e98-8714-1081a0455c41`:
+Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy hotfix canonical `www` từ commit `3f74428`. GitHub Actions tiếp tục deploy thành công bằng environment secret scoped: workflow-dispatch baseline tạo version `512eb86a-7646-4e98-8714-1081a0455c41`, còn push-triggered validation tạo version `98e76988-5d2a-4b69-a105-37278286e600`. Version ID thay đổi ở mỗi release.
 
 - `GET /` trả 308 sang `/vi/`; `www` trả 301 một bước sang apex. Public unknown URL trả 404 thật.
 - `/vi/`, `/en/` và toàn bộ 26 sitemap URL trả 200/self-canonical; sitemap trả XML.
@@ -121,6 +121,7 @@ Production đã deploy ngày 2026-08-05 qua Wrangler OAuth, sau đó redeploy ho
 - Worker có `TURNSTILE_SECRET_KEY`, client build có production site key và health xác nhận `turnstileProtected: true`.
 - `bun run smoke:production` pass toàn bộ 13 gate sau deploy.
 - [Deploy run 30970621576](https://github.com/khiemnd777/dkt/actions/runs/30970621576) xác nhận GitHub Actions có thể build, upload Worker, cập nhật triggers và chạy smoke mà không cần Wrangler local.
+- [Push-triggered deploy run 30970905253](https://github.com/khiemnd777/dkt/actions/runs/30970905253) xác nhận commit lên `main` tự đi qua CI rồi deploy và production smoke thành công.
 
 ### Giới hạn cần quyền ngoài repository
 

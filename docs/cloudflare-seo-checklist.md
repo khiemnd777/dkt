@@ -2,14 +2,14 @@
 
 ## Live snapshot 2026-08-05
 
-- Cloudflare Worker version `512eb86a-7646-4e98-8714-1081a0455c41` đang chạy trên apex, `www` và `game` custom domain.
+- [Push-triggered deploy run 30970905253](https://github.com/khiemnd777/dkt/actions/runs/30970905253) đã phát hành Worker version `98e76988-5d2a-4b69-a105-37278286e600` trên apex, `www` và `game` custom domain; version ID thay đổi ở mỗi release.
 - Production smoke pass: root 308 sang `/vi/`, `www` 301 sang apex, public unknown 404, missing room 410, API/noindex/no-store đúng policy.
 - Cả 26 sitemap URL trả 200 và self-canonical; sitemap, robots và llms có content type đúng.
 - `game.dokinhthanh.io.vn` đã resolve với HTTPS; `TURNSTILE_SECRET_KEY` và client site key hoạt động, health trả `turnstileProtected: true`.
 - Managed Content Signals vẫn prepend nhưng tương thích policy source: search được phép, OAI-SearchBot được phép, GPTBot bị chặn và sitemap hiện diện.
 - GitHub environment `production` đã có Account ID, Turnstile site-key variable và `CLOUDFLARE_API_TOKEN`; workflow deploy không còn phụ thuộc vào phiên Wrangler local.
 
-Account token `github-dkt-production-deploy` dùng template chính thức `Edit Cloudflare Workers`; policy zone được giới hạn cho `dokinhthanh.io.vn`, token hết hạn ngày 2027-08-06 và chỉ được lưu dưới dạng GitHub secret. [Deploy run 30970621576](https://github.com/khiemnd777/dkt/actions/runs/30970621576) đã upload Worker, kích hoạt triggers và pass toàn bộ production smoke checks. Xoay token trước ngày hết hạn; không commit hoặc tái sử dụng OAuth token của Wrangler.
+Account token `github-dkt-production-deploy` dùng template chính thức `Edit Cloudflare Workers`; policy zone được giới hạn cho `dokinhthanh.io.vn`, token hết hạn ngày 2027-08-06 và chỉ được lưu dưới dạng GitHub secret. [Workflow-dispatch run 30970621576](https://github.com/khiemnd777/dkt/actions/runs/30970621576) kiểm chứng secret độc lập; run 30970905253 tiếp tục kiểm chứng chuỗi push → CI → deploy → production smoke. Xoay token trước ngày hết hạn; không commit hoặc tái sử dụng OAuth token của Wrangler.
 
 ## DNS và domain
 
