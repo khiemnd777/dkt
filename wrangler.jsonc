@@ -39,7 +39,11 @@
       "/privacy*",
       "/robots.txt",
       "/sitemap.xml",
-      "/llms.txt"
+      "/llms.txt",
+      "/vi",
+      "/vi/*",
+      "/en",
+      "/en/*"
     ]
   },
   "durable_objects": {

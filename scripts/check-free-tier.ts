@@ -81,7 +81,18 @@ if (assets?.run_worker_first === true) fail("assets.run_worker_first must never 
 if (!Array.isArray(assets?.run_worker_first)) {
   fail("assets.run_worker_first must use a selective route array.");
 } else {
-  for (const required of ["/api/*", "/create*", "/join/*", "/play/*", "/host/*", "/screen/*"]) {
+  for (const required of [
+    "/api/*",
+    "/create*",
+    "/join/*",
+    "/play/*",
+    "/host/*",
+    "/screen/*",
+    "/vi",
+    "/vi/*",
+    "/en",
+    "/en/*",
+  ]) {
     if (!assets.run_worker_first.includes(required))
       fail(`Missing Worker-first route: ${required}`);
   }
@@ -154,7 +165,7 @@ if (initialJavaScript.files.length === 0) {
   }
 }
 notes.push("Forbidden bindings: none detected");
-notes.push("Selective Worker routing: API and operational game HTML only");
+notes.push("Selective Worker routing: API, canonical public HTML and operational game routes");
 notes.push("Public unknown-route policy: no global SPA fallback");
 notes.push("Durable Object storage: SQLite-backed migration");
 
