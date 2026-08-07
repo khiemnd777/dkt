@@ -33,7 +33,7 @@ Không publish exact capacity, uptime, latency, giá hoặc thời gian xóa n�
 - Chỉ ghi author/reviewer/publisher/organization khi có danh tính thật và đồng ý công bố. Repository hiện chưa có dữ liệu này nên schema cố ý bỏ trống.
 - `datePublished`: ngày xuất bản thật.
 - `dateModified`: chỉ đổi khi sửa nội dung có ý nghĩa; build không tự đổi ngày.
-- Không tự thêm address, social profile, contact hoặc credential.
+- Chỉ thêm address, social profile, contact hoặc credential sau khi chủ sở hữu xác nhận. Các kênh liên hệ hiện được xác nhận trong `shared/contact.ts`; mọi thay đổi tiếp theo phải được xác nhận lại.
 
 ## 5. AI-assisted content
 
@@ -47,7 +47,7 @@ AI có thể hỗ trợ outline, kiểm tra consistency và localization. Ngư�
 4. Cập nhật `dateModified` thật và chạy toàn bộ gate.
 5. Ghi nhận yêu cầu qua GitHub Issues, phản hồi phạm vi sửa và không lưu dữ liệu người báo cáo quá nhu cầu.
 
-Kênh sửa lỗi công khai là `https://github.com/khiemnd777/dkt/issues/new`. Không yêu cầu hoặc đưa mã phòng, token, tên người chơi, câu hỏi riêng hay dữ liệu phiên vào issue. Không invent email hoặc danh tính reviewer.
+Kênh sửa lỗi công khai là `https://github.com/khiemnd777/dkt/issues/new`; người dùng cũng có thể liên hệ qua các kênh được xác nhận trong `shared/contact.ts`. Không yêu cầu hoặc đưa mã phòng, token, tên người chơi, câu hỏi riêng hay dữ liệu phiên vào bất kỳ kênh nào. Không invent email hoặc danh tính reviewer.
 
 ## 7. Những cách bị cấm
 

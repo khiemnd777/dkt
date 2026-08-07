@@ -17,7 +17,7 @@ Nguyên tắc: chỉ publish khi nội dung có search intent riêng, đủ bằ
 - Thêm ảnh chụp sản phẩm đã xóa sạch room code, token, tên người chơi và câu hỏi riêng.
 - Thêm video hướng dẫn chỉ khi có transcript HTML và caption.
 - Thêm changelog/updates collection và RSS chỉ khi dự án có nhịp xuất bản thật. Hiện không tạo feed rỗng.
-- Thêm kênh liên hệ/correction thật do chủ sở hữu xác nhận; sau đó cập nhật About, Editorial policy, Privacy và schema nếu phù hợp.
+- Duy trì các kênh liên hệ/correction thật đã được chủ sở hữu xác nhận; About, Editorial policy và Privacy phải được cập nhật khi kênh hoặc cách xử lý dữ liệu thay đổi.
 - Dùng dữ liệu Search Console/Bing thật để xác nhận hoặc loại bỏ hypothesis; không mua volume hoặc tạo số liệu giả.
 
 ## Không đưa vào roadmap xuất bản

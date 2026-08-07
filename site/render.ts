@@ -1,3 +1,4 @@
+import { CONTACT_CHANNELS } from "../shared/contact";
 import { type Locale, SITE } from "./config";
 import { alternateFor, PAGE_BY_PATH, PUBLIC_PAGES } from "./content";
 import type { ContentSection, PublicPage } from "./types";
@@ -24,6 +25,9 @@ const LABELS = {
     editorial: "Chính sách biên tập",
     privacy: "Quyền riêng tư & dữ liệu",
     corrections: "Báo lỗi nội dung",
+    contact: "Liên hệ & góp ý",
+    contactIntro: "Chọn kênh thuận tiện để gửi ý tưởng hoặc phản hồi.",
+    contactPrivacy: "Không gửi mã phòng, token hoặc dữ liệu phiên riêng tư.",
     product: "Sản phẩm",
     trust: "Thông tin",
   },
@@ -48,6 +52,9 @@ const LABELS = {
     editorial: "Editorial policy",
     privacy: "Privacy & data",
     corrections: "Report a content issue",
+    contact: "Contact & feedback",
+    contactIntro: "Choose the most convenient channel for ideas or feedback.",
+    contactPrivacy: "Do not send room codes, tokens, or private session data.",
     product: "Product",
     trust: "Information",
   },
@@ -304,6 +311,12 @@ function renderHeader(page: PublicPage, alternate: PublicPage): string {
 function renderFooter(page: PublicPage): string {
   const labels = LABELS[page.locale];
   const vi = page.locale === "vi";
+  const contactLinks = CONTACT_CHANNELS.map((channel) => {
+    const websiteAttributes = channel.href.startsWith("https://")
+      ? ' target="_blank" rel="noopener noreferrer"'
+      : "";
+    return `<a href="${channel.href}" aria-label="${escapeHtml(`${channel.label}: ${channel.handle}`)}"${websiteAttributes}>${channel.label}</a>`;
+  }).join("");
   return `<footer class="site-footer">
     <div><a class="footer-brand" href="/${page.locale}/">${SITE.name}</a><p>${
       vi
@@ -322,6 +335,12 @@ function renderFooter(page: PublicPage): string {
       <a href="${vi ? "/vi/chinh-sach-bien-tap/" : "/en/editorial-policy/"}">${labels.editorial}</a>
       <a href="${vi ? "/vi/quyen-rieng-tu-va-vong-doi-du-lieu/" : "/en/privacy-and-data-lifecycle/"}">${labels.privacy}</a>
       <a href="${SITE.correctionUrl}">${labels.corrections}</a>
+    </nav>
+    <nav class="footer-contact" aria-label="${labels.contact}">
+      <strong>${labels.contact}</strong>
+      <span>${labels.contactIntro}</span>
+      <div class="footer-contact-links">${contactLinks}</div>
+      <small>${labels.contactPrivacy}</small>
     </nav>
   </footer>`;
 }

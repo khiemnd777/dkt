@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CONTACT_CHANNELS } from "../../shared/contact";
 import { PUBLIC_ROBOTS, SITE } from "../../site/config";
 import { alternateFor, PAGE_BY_PATH, PUBLIC_PAGES } from "../../site/content";
 import { jsonLdGraph, renderLlmsTxt, renderPage, renderSitemap } from "../../site/render";
@@ -80,6 +81,17 @@ describe("static SEO and AIEO publishing gates", () => {
       expect(
         document.querySelector(`a[href="${SITE.correctionUrl}"]`)?.textContent?.trim().length,
       ).toBeGreaterThan(0);
+      for (const channel of CONTACT_CHANNELS) {
+        const contactLink = document.querySelector<HTMLAnchorElement>(
+          `.footer-contact a[href="${channel.href}"]`,
+        );
+        expect(contactLink?.textContent?.trim()).toBe(channel.label);
+        expect(contactLink?.getAttribute("aria-label")).toContain(channel.handle);
+        if (channel.href.startsWith("https://")) {
+          expect(contactLink?.getAttribute("target")).toBe("_blank");
+          expect(contactLink?.getAttribute("rel")).toContain("noopener");
+        }
+      }
     }
   });
 

@@ -2,6 +2,7 @@ import { ArrowRight, BookOpenCheck, Gamepad2, Sparkles, Users } from "lucide-rea
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Brand } from "../components/shared/Brand";
+import { ContactChannels } from "../components/shared/ContactChannels";
 import { PrivacyNotice } from "../components/shared/PrivacyNotice";
 
 export function HomePage() {
@@ -108,7 +109,8 @@ export function HomePage() {
       </section>
       <PrivacyNotice />
       <footer className="site-footer">
-        Đố Kinh Thánh Live · Thiết kế cho những buổi nhóm đầy niềm vui
+        <ContactChannels />
+        <p>Đố Kinh Thánh Live · Thiết kế cho những buổi nhóm đầy niềm vui</p>
       </footer>
     </main>
   );

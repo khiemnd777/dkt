@@ -368,10 +368,84 @@ svg {
   padding: 12px 14px;
 }
 .site-footer {
-  padding: 30px 20px 40px;
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 18px 0 40px;
   color: var(--muted);
   text-align: center;
   font-size: 0.85rem;
+}
+.site-footer > p {
+  margin: 24px 0 0;
+}
+.contact-channels {
+  padding: clamp(20px, 4vw, 30px);
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(320px, auto);
+  align-items: center;
+  gap: 18px 32px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  color: var(--navy);
+  background: radial-gradient(circle at 8% 10%, rgba(244, 205, 89, 0.24), transparent 32%), #fff;
+  box-shadow: 0 12px 36px rgba(16, 34, 61, 0.07);
+  text-align: left;
+}
+.contact-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.contact-heading > svg {
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  border-radius: 12px;
+  color: var(--navy);
+  background: var(--gold-2);
+}
+.contact-heading strong,
+.contact-heading span {
+  display: block;
+}
+.contact-heading strong {
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+.contact-heading span,
+.contact-channels small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.contact-links a {
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ccd6e4;
+  border-radius: 999px;
+  color: var(--navy-2);
+  background: rgba(255, 255, 255, 0.88);
+  font-weight: 750;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.contact-links a:hover {
+  transform: translateY(-1px);
+  border-color: var(--gold);
+  box-shadow: 0 6px 18px rgba(16, 34, 61, 0.09);
+}
+.contact-channels small {
+  grid-column: 1 / -1;
 }
 .powered-by {
   position: fixed;
@@ -2740,6 +2814,12 @@ textarea:focus {
 }
 
 @media (max-width: 800px) {
+  .contact-channels {
+    grid-template-columns: 1fr;
+  }
+  .contact-links {
+    justify-content: flex-start;
+  }
   .builder-preview-header {
     padding-inline: 14px;
     grid-template-columns: minmax(150px, 1fr) minmax(150px, auto) minmax(150px, 1fr);
@@ -2925,14 +3005,27 @@ textarea:focus {
   }
   .hero-visual {
     min-height: 370px;
+    overflow: hidden;
   }
   .show-card {
     padding: 15px;
     font-size: 0.78rem;
   }
   .feature-strip,
-  .privacy-notice {
+  .privacy-notice,
+  .site-footer {
     width: calc(100% - 28px);
+  }
+  .contact-channels {
+    padding: 18px;
+    border-radius: 19px;
+  }
+  .contact-links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .contact-links a:last-child {
+    grid-column: 1 / -1;
   }
   .privacy-notice:not(.compact) {
     align-items: flex-start;

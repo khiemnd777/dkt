@@ -1,6 +1,6 @@
 import type { PublicPage } from "./types";
 
-const REVIEW_DATE = "2026-08-05";
+const REVIEW_DATE = "2026-08-07";
 
 const vi = (page: Omit<PublicPage, "locale" | "dateModified" | "ogImageAlt">): PublicPage => ({
   ...page,
@@ -534,6 +534,12 @@ export const PUBLIC_PAGES: PublicPage[] = [
           "Các trang public chỉ mô tả hành vi đã xác minh từ mã nguồn. Không công bố số người dùng, đánh giá, chứng nhận, tổ chức xuất bản hoặc lời chứng thực khi chưa có dữ liệu thật.",
         ],
       },
+      {
+        title: "Liên hệ và góp ý",
+        paragraphs: [
+          "Người dùng có thể gửi ý tưởng, phản hồi trải nghiệm hoặc báo lỗi qua Messenger, Zalo, WhatsApp, Telegram và Viber từ phần liên hệ ở cuối mỗi trang. Không gửi mã phòng, token, tên người chơi, câu hỏi riêng hoặc dữ liệu phiên qua các kênh này.",
+        ],
+      },
     ],
     related: [
       "/vi/tinh-nang/",
@@ -579,7 +585,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Ngày và sửa lỗi",
         paragraphs: [
           "datePublished là ngày xuất bản thật; dateModified chỉ đổi khi nội dung thay đổi đáng kể, không đổi theo mỗi build. Khi phát hiện lỗi, tạm gỡ nội dung có rủi ro, sửa nguồn, cập nhật ngày và ghi lại phạm vi chỉnh sửa trong lịch sử repository.",
-          "Dự án tiếp nhận báo lỗi nội dung qua GitHub Issues công khai. Không gửi mã phòng, token, tên người chơi, câu hỏi riêng hoặc dữ liệu phiên vào issue; repository không hiển thị email hay danh tính người duyệt khi chưa có sự đồng ý công bố.",
+          "Dự án tiếp nhận báo lỗi nội dung qua GitHub Issues công khai và các kênh Messenger, Zalo, WhatsApp, Telegram, Viber được liệt kê ở cuối trang. Không gửi mã phòng, token, tên người chơi, câu hỏi riêng hoặc dữ liệu phiên qua các kênh này; repository không hiển thị email hay danh tính người duyệt khi chưa có sự đồng ý công bố.",
         ],
       },
       {
@@ -644,6 +650,12 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Analytics và metadata nền tảng",
         paragraphs: [
           "Mã nguồn hiện không cài SDK analytics hoặc quảng cáo. Nếu sau này đo Core Web Vitals hay CTA, cấu hình không được gửi mã phòng, token, tên, câu hỏi, đáp án, URL ảnh hoặc nội dung tự do. Cloudflare vẫn có thể xử lý metadata vận hành ở cấp nền tảng theo chính sách của họ.",
+        ],
+      },
+      {
+        title: "Dữ liệu khi chủ động liên hệ",
+        paragraphs: [
+          "Các nút liên hệ mở dịch vụ Messenger, Zalo, WhatsApp, Telegram hoặc Viber bên ngoài ứng dụng. Khi chủ động nhắn tin, dữ liệu tài khoản và nội dung tin nhắn được nền tảng bạn chọn xử lý theo chính sách của họ, không trở thành dữ liệu phòng chơi của Đố Kinh Thánh Live. Không gửi mã phòng, token, tên người chơi hoặc nội dung game riêng tư.",
         ],
       },
     ],
@@ -1167,6 +1179,12 @@ export const PUBLIC_PAGES: PublicPage[] = [
           "Public pages describe behavior verified in source code. They do not claim user counts, ratings, awards, publisher organizations, or testimonials without real evidence.",
         ],
       },
+      {
+        title: "Contact and feedback",
+        paragraphs: [
+          "Users can send ideas, experience feedback, or issue reports through Messenger, Zalo, WhatsApp, Telegram, and Viber from the contact section in every page footer. Do not send room codes, tokens, player names, private questions, or session data through these channels.",
+        ],
+      },
     ],
     related: ["/en/features/", "/en/editorial-policy/", "/en/privacy-and-data-lifecycle/"],
     ctaLabel: "Try the application",
@@ -1208,7 +1226,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Dates and corrections",
         paragraphs: [
           "datePublished records real publication; dateModified changes only after a material edit, not on each build. If an error is found, remove risky material, correct the source, update the date, and preserve the change in repository history.",
-          "The project accepts content corrections through public GitHub Issues. Do not include room codes, tokens, player names, private questions, or session data in an issue; the site does not publish reviewer identities or email addresses without consent.",
+          "The project accepts content corrections through public GitHub Issues and the Messenger, Zalo, WhatsApp, Telegram, and Viber channels listed in the footer. Do not include room codes, tokens, player names, private questions, or session data through these channels; the site does not publish reviewer identities or email addresses without consent.",
         ],
       },
       {
@@ -1273,6 +1291,12 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Analytics and platform metadata",
         paragraphs: [
           "The current source includes no analytics or advertising SDK. Future measurement must not send room codes, tokens, names, questions, answers, image URLs, or free-form game content. Cloudflare may still process platform-level operational metadata under its own policies.",
+        ],
+      },
+      {
+        title: "Data when you contact us",
+        paragraphs: [
+          "The contact buttons open Messenger, Zalo, WhatsApp, Telegram, or Viber outside the app. When you choose to message, your account data and message content are handled by that platform under its own policy and do not become Bible Quiz Live room data. Do not send room codes, tokens, player names, or private game content.",
         ],
       },
     ],
