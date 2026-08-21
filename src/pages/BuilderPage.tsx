@@ -71,9 +71,7 @@ function freshGame(): GameDefinition {
 function estimatedSeconds(items: GameItem[], defaultDuration: number): number {
   return items.reduce((total, item) => {
     if (item.type === "CROSSWORD")
-      return (
-        total + item.horizontalRows.length * item.horizontalDurationSec + item.verticalDurationSec
-      );
+      return total + item.horizontalRows.length * item.horizontalDurationSec;
     return total + (item.durationSec ?? defaultDuration);
   }, 0);
 }

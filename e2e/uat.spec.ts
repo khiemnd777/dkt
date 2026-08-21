@@ -32,7 +32,6 @@ const alignedCrosswordDraft: GameDefinition = {
       type: "CROSSWORD",
       title: "Nhân vật Kinh Thánh",
       horizontalDurationSec: 20,
-      verticalDurationSec: 30,
       verticalClue: "Từ khóa dọc",
       verticalAnswer: "ÔÁÔ",
       horizontalRows: [
@@ -241,13 +240,8 @@ test("UAT — keeps every crossword vertical cell on one automatic column", asyn
   await answerInput.fill("no e");
   await page.getByRole("button", { name: "Kiểm tra đáp án" }).click();
   await expect(page.getByText("Chính xác!")).toBeVisible();
-  await page.getByRole("button", { name: "Đến từ khóa dọc" }).click();
-
-  await expect(page.getByText("TỪ KHÓA DỌC · ĐIỂM ×2")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Từ khóa dọc" })).toBeVisible();
-  await answerInput.fill("o a o");
-  await page.getByRole("button", { name: "Kiểm tra đáp án" }).click();
-  await expect(page.getByText("Mô phỏng: 2.000 điểm")).toBeVisible();
+  await expect(page.getByText("Đáp án hàng dọc:")).toBeVisible();
+  await expect(page.getByText("ÔÁÔ", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Chơi lại ô chữ" })).toBeVisible();
 });
 

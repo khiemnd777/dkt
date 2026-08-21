@@ -124,25 +124,20 @@ function PracticePreview({
   const [text, setText] = useState("");
   const [result, setResult] = useState<boolean>();
   const crossword = item.type === "CROSSWORD" ? item : undefined;
-  const totalPracticeRounds = crossword ? crossword.horizontalRows.length + 1 : 1;
-  const isVerticalRound = Boolean(crossword && roundIndex === crossword.horizontalRows.length);
+  const totalPracticeRounds = crossword ? crossword.horizontalRows.length : 1;
   const currentRow = crossword?.horizontalRows[roundIndex];
   const prompt =
     item.type === "CROSSWORD"
-      ? (currentRow?.clue ?? item.verticalClue)
+      ? (currentRow?.clue ?? item.title)
       : item.type === "TRUE_FALSE"
         ? item.statement
         : item.prompt;
   const durationSec =
     item.type === "CROSSWORD"
-      ? isVerticalRound
-        ? item.verticalDurationSec
-        : item.horizontalDurationSec
+      ? item.horizontalDurationSec
       : (item.durationSec ?? defaultDurationSec);
   const roundLabel = crossword
-    ? isVerticalRound
-      ? "TỪ KHÓA DỌC · ĐIỂM ×2"
-      : `HÀNG NGANG ${roundIndex + 1} / ${crossword.horizontalRows.length}`
+    ? `HÀNG NGANG ${roundIndex + 1} / ${crossword.horizontalRows.length}`
     : "TỰ CHƠI KIỂM NGHIỆM";
   const correctAnswer =
     item.type === "SINGLE_CHOICE"
@@ -153,12 +148,9 @@ function PracticePreview({
           : "Sai"
         : item.type === "SHORT_ANSWER"
           ? item.canonicalAnswer
-          : (currentRow?.answer ?? item.verticalAnswer);
+          : (currentRow?.answer ?? "");
   const revealedRows = crossword
-    ? Math.min(
-        crossword.horizontalRows.length,
-        roundIndex + (result !== undefined && !isVerticalRound ? 1 : 0),
-      )
+    ? Math.min(crossword.horizontalRows.length, roundIndex + (result !== undefined ? 1 : 0))
     : 0;
   const crosswordOffsets = crossword ? crosswordRowOffsets(crossword.horizontalRows) : [];
   const hasAnswer =
@@ -187,7 +179,7 @@ function PracticePreview({
         ? [item.canonicalAnswer, ...item.acceptedAliases]
         : currentRow
           ? [currentRow.answer, ...currentRow.acceptedAliases]
-          : [item.verticalAnswer];
+          : [];
     setResult(accepted.some((answer) => normalizeAnswer(answer) === normalizeAnswer(text)));
   };
 
@@ -205,9 +197,7 @@ function PracticePreview({
   const nextLabel = crossword
     ? roundIndex === totalPracticeRounds - 1
       ? "Chơi lại ô chữ"
-      : roundIndex + 1 === crossword.horizontalRows.length
-        ? "Đến từ khóa dọc"
-        : "Hàng tiếp theo"
+      : "Hàng tiếp theo"
     : "Thử lại câu này";
   const typeClass = crossword ? "crossword-game-preview" : "";
 
@@ -221,7 +211,7 @@ function PracticePreview({
             item={crossword}
             offsets={crosswordOffsets}
             revealedRows={revealedRows}
-            activeRow={isVerticalRound ? undefined : roundIndex}
+            activeRow={roundIndex}
           />
         ) : null}
         <h3>{prompt}</h3>
@@ -286,11 +276,16 @@ function PracticePreview({
                 <span>
                   Đáp án: <b>{correctAnswer}</b>
                 </span>
+                {crossword && roundIndex === crossword.horizontalRows.length - 1 ? (
+                  <span>
+                    Đáp án hàng dọc: <b>{crossword.verticalAnswer}</b>
+                  </span>
+                ) : null}
                 {result ? (
                   <small>
                     {mode === "TURN_BASED"
-                      ? `Mô phỏng: ${(isVerticalRound ? 2_000 : 1_000).toLocaleString("vi-VN")} điểm`
-                      : `Đáp án hợp lệ${isVerticalRound ? " · vòng này nhân đôi" : ""}; điểm live phụ thuộc tốc độ.`}
+                      ? `Mô phỏng: ${(1_000).toLocaleString("vi-VN")} điểm`
+                      : "Đáp án hợp lệ; điểm live phụ thuộc tốc độ."}
                   </small>
                 ) : null}
               </div>

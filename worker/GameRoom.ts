@@ -1,10 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
 import { AppError, errorResponse } from "../shared/errors";
-import type { PlayerAnswer, RuntimeRound } from "../shared/game";
+import type { CrosswordItem, PlayerAnswer, RuntimeRound } from "../shared/game";
 import { LIMITS, PROTOCOL_VERSION } from "../shared/limits";
 import type { ClientMessage, ServerEventType } from "../shared/protocol";
 import { clientMessageSchema } from "../shared/protocol";
 import type {
+  CrosswordVerticalSubmissionRecord,
   Player,
   RoomGame,
   RoomMeta,
@@ -16,13 +17,13 @@ import type {
   WebSocketTicket,
 } from "../shared/room";
 import { createRoomSchema, joinRoomSchema, ticketRequestSchema } from "../shared/schemas";
-import { normalizeDisplayName } from "../shared/text";
+import { normalizeAnswer, normalizeDisplayName } from "../shared/text";
 import type { Env } from "./env";
 import { scheduleNextAlarm } from "./room/alarm-scheduler";
 import { authenticateSession } from "./room/authentication";
 import { rankPlayers } from "./room/ranking";
 import { compileGame } from "./room/round-compiler";
-import { calculateScore, isCorrectAnswer } from "./room/scoring";
+import { calculateCrosswordVerticalScore, calculateScore, isCorrectAnswer } from "./room/scoring";
 import { filterRoundForPublic } from "./room/snapshot-filter";
 import { assertTransition } from "./room/state-machine";
 import { bearerToken, hashToken, randomToken } from "./security/crypto";
@@ -34,6 +35,7 @@ const KEYS = {
   players: "room:players",
   progress: "room:progress",
   submissions: "room:current-submissions",
+  crosswordVerticalSubmissions: "room:crossword-vertical-submissions",
   tickets: "room:tickets",
   finalResult: "room:final-result",
   sequenceLease: "room:sequence-lease",
@@ -46,6 +48,7 @@ interface RoomState {
   players: Record<string, Player>;
   progress: RoomProgress;
   submissions: Record<string, SubmissionRecord>;
+  crosswordVerticalSubmissions: Record<string, Record<string, CrosswordVerticalSubmissionRecord>>;
   tickets: Record<string, WebSocketTicket>;
 }
 
@@ -117,13 +120,25 @@ export class GameRoom extends DurableObject<Env> {
 
   private async load(): Promise<RoomState | undefined> {
     if (this.deleted) return undefined;
-    const [meta, secrets, game, players, progress, submissions, tickets] = await Promise.all([
+    const [
+      meta,
+      secrets,
+      game,
+      players,
+      progress,
+      submissions,
+      crosswordVerticalSubmissions,
+      tickets,
+    ] = await Promise.all([
       this.ctx.storage.get<RoomMeta>(KEYS.meta),
       this.ctx.storage.get<RoomSecrets>(KEYS.secrets),
       this.ctx.storage.get<RoomGame>(KEYS.game),
       this.ctx.storage.get<Record<string, Player>>(KEYS.players),
       this.ctx.storage.get<RoomProgress>(KEYS.progress),
       this.ctx.storage.get<Record<string, SubmissionRecord>>(KEYS.submissions),
+      this.ctx.storage.get<Record<string, Record<string, CrosswordVerticalSubmissionRecord>>>(
+        KEYS.crosswordVerticalSubmissions,
+      ),
       this.ctx.storage.get<Record<string, WebSocketTicket>>(KEYS.tickets),
     ]);
     if (!meta || !secrets || !game || !players || !progress) return undefined;
@@ -134,6 +149,7 @@ export class GameRoom extends DurableObject<Env> {
       players,
       progress,
       submissions: submissions ?? {},
+      crosswordVerticalSubmissions: crosswordVerticalSubmissions ?? {},
       tickets: tickets ?? {},
     };
   }
@@ -196,6 +212,7 @@ export class GameRoom extends DurableObject<Env> {
         [KEYS.players]: {},
         [KEYS.progress]: progress,
         [KEYS.submissions]: {},
+        [KEYS.crosswordVerticalSubmissions]: {},
         [KEYS.tickets]: {},
         [KEYS.sequenceLease]: 0,
       });
@@ -444,6 +461,11 @@ export class GameRoom extends DurableObject<Env> {
         throw new AppError("UNAUTHORIZED", 403);
       return this.submitAnswer(state, ws, attachment.playerId, message.payload);
     }
+    if (message.type === "player.submit_crossword_vertical") {
+      if (attachment.role !== "PLAYER" || !attachment.playerId)
+        throw new AppError("UNAUTHORIZED", 403);
+      return this.submitCrosswordVertical(state, ws, attachment.playerId, message.payload);
+    }
     if (attachment.role !== "HOST") throw new AppError("UNAUTHORIZED", 403);
     await this.touchHost(state);
     switch (message.type) {
@@ -507,6 +529,75 @@ export class GameRoom extends DurableObject<Env> {
     return round;
   }
 
+  private crosswordVerticalSubmission(
+    state: RoomState,
+    itemId: string,
+    playerId: string,
+  ): CrosswordVerticalSubmissionRecord | undefined {
+    return state.crosswordVerticalSubmissions[itemId]?.[playerId];
+  }
+
+  private crosswordItem(state: RoomState, itemId: string): CrosswordItem | undefined {
+    const item = state.game.definition.items.find((candidate) => candidate.id === itemId);
+    return item?.type === "CROSSWORD" ? item : undefined;
+  }
+
+  private isLastCrosswordHorizontalRound(state: RoomState, round: RuntimeRound): boolean {
+    if (round.kind !== "CROSSWORD_HORIZONTAL") return false;
+    const horizontalRounds = state.game.rounds.filter(
+      (candidate) => candidate.itemId === round.itemId && candidate.kind === "CROSSWORD_HORIZONTAL",
+    );
+    return horizontalRounds.at(-1)?.roundId === round.roundId;
+  }
+
+  private crosswordVerticalReveal(
+    state: RoomState,
+    round: RuntimeRound,
+  ): RoomSnapshot["crosswordVerticalReveal"] {
+    if (!this.isLastCrosswordHorizontalRound(state, round)) return undefined;
+    const item = this.crosswordItem(state, round.itemId);
+    if (!item) return undefined;
+    return {
+      clue: item.verticalClue,
+      answer: item.verticalAnswer,
+      bibleReference: item.bibleReference,
+      explanation: item.explanation,
+    };
+  }
+
+  private revealedCrosswordCells(state: RoomState, itemId: string): number {
+    return state.game.rounds.filter(
+      (candidate) =>
+        candidate.itemId === itemId &&
+        candidate.kind === "CROSSWORD_HORIZONTAL" &&
+        state.progress.revealedRoundIds.includes(candidate.roundId),
+    ).length;
+  }
+
+  private crosswordVerticalPoints(state: RoomState, round: RuntimeRound): number | undefined {
+    const totalCells = round.publicPayload.crossword?.rowCount;
+    if (!round.groupId || !totalCells) return undefined;
+    return calculateCrosswordVerticalScore({
+      isCorrect: true,
+      revealedCells: this.revealedCrosswordCells(state, round.itemId),
+      totalCells,
+    });
+  }
+
+  private hasAnsweredCurrentRound(
+    state: RoomState,
+    _round: RuntimeRound,
+    playerId: string,
+  ): boolean {
+    return Boolean(state.submissions[playerId]);
+  }
+
+  private answeredCount(state: RoomState, round = this.currentRound(state)): number {
+    return this.eligiblePlayers(state).filter((player) =>
+      this.hasAnsweredCurrentRound(state, round, player.playerId),
+    ).length;
+  }
+
   private async startCountdown(state: RoomState): Promise<void> {
     if (!["LOBBY", "ANSWER_REVEAL", "LEADERBOARD"].includes(state.progress.phase))
       throw new AppError("INVALID_PHASE", 409);
@@ -553,12 +644,17 @@ export class GameRoom extends DurableObject<Env> {
     state.meta.stateVersion += 1;
     await this.ctx.storage.put({ [KEYS.meta]: state.meta, [KEYS.progress]: state.progress });
     await scheduleNextAlarm(this.ctx.storage, state.meta, state.progress);
+    const eligibleCount = this.eligiblePlayers(state).length;
+    const answeredCount = this.answeredCount(state, round);
     await this.broadcastEvent(state.meta, "round.opened", {
       round: filterRoundForPublic(round),
       openedAt: state.progress.openedAt,
       deadlineAt: state.progress.deadlineAt,
-      eligibleCount: this.eligiblePlayers(state).length,
+      eligibleCount,
+      answeredCount,
+      crosswordVerticalPoints: this.crosswordVerticalPoints(state, round),
     });
+    if (eligibleCount > 0 && answeredCount >= eligibleCount) await this.lockRound(state);
   }
 
   private async submitAnswer(
@@ -619,14 +715,90 @@ export class GameRoom extends DurableObject<Env> {
       submittedAt: receivedAt,
     };
     state.submissions[playerId] = record;
-    await this.ctx.storage.put(KEYS.submissions, state.submissions);
+    await this.ctx.storage.put({
+      [KEYS.submissions]: state.submissions,
+      [KEYS.crosswordVerticalSubmissions]: state.crosswordVerticalSubmissions,
+    });
     await this.sendEvent(state.meta, ws, "answer.accepted", {
       roundId: round.roundId,
       submissionId: record.submissionId,
     });
     this.scheduleAnswerCount();
-    if (Object.keys(state.submissions).length >= this.eligiblePlayers(state).length)
+    if (this.answeredCount(state, round) >= this.eligiblePlayers(state).length)
       await this.lockRound(state);
+  }
+
+  private async submitCrosswordVertical(
+    state: RoomState,
+    ws: WebSocket,
+    playerId: string,
+    payload: { roundId: string; submissionId: string; value: string },
+  ): Promise<void> {
+    if (state.progress.phase !== "QUESTION_OPEN") throw new AppError("INVALID_PHASE", 409);
+    const round = this.currentRound(state);
+    if (round.kind !== "CROSSWORD_HORIZONTAL" || payload.roundId !== round.roundId)
+      throw new AppError("BAD_REQUEST", 400);
+    const crossword = this.crosswordItem(state, round.itemId);
+    const totalCells = round.publicPayload.crossword?.rowCount;
+    if (!crossword || !totalCells) throw new AppError("BAD_REQUEST", 400);
+    const player = state.players[playerId];
+    if (!player || player.removed) throw new AppError("UNAUTHORIZED", 403);
+    if (player.eligibleFromRoundIndex > state.progress.currentRoundIndex)
+      throw new AppError("NOT_ELIGIBLE", 409);
+    const receivedAt = Date.now();
+    if (
+      !state.progress.deadlineAt ||
+      !state.progress.openedAt ||
+      receivedAt > state.progress.deadlineAt
+    ) {
+      throw new AppError("LATE_ANSWER", 409);
+    }
+    const previous = this.crosswordVerticalSubmission(state, round.itemId, playerId);
+    if (previous) {
+      if (previous.submissionId === payload.submissionId) {
+        await this.sendEvent(state.meta, ws, "crossword.vertical_answer_accepted", {
+          itemId: round.itemId,
+          submissionId: previous.submissionId,
+        });
+        return;
+      }
+      throw new AppError("DUPLICATE_CROSSWORD_VERTICAL", 409);
+    }
+    const correct = normalizeAnswer(crossword.verticalAnswer) === normalizeAnswer(payload.value);
+    const responseMs = Math.min(
+      round.durationSec * 1_000,
+      Math.max(
+        0,
+        (state.progress.elapsedBeforePauseMs ?? 0) + (receivedAt - state.progress.openedAt),
+      ),
+    );
+    const record: CrosswordVerticalSubmissionRecord = {
+      roundId: `${round.itemId}:vertical`,
+      itemId: round.itemId,
+      contextRoundId: round.roundId,
+      playerId,
+      submissionId: payload.submissionId,
+      isCorrect: correct,
+      awardedPoints: calculateCrosswordVerticalScore({
+        isCorrect: correct,
+        revealedCells: this.revealedCrosswordCells(state, round.itemId),
+        totalCells,
+      }),
+      responseMs,
+      submittedAt: receivedAt,
+      bonusApplied: false,
+    };
+    const itemSubmissions = state.crosswordVerticalSubmissions[round.itemId] ?? {};
+    itemSubmissions[playerId] = record;
+    state.crosswordVerticalSubmissions[round.itemId] = itemSubmissions;
+    await this.ctx.storage.put(
+      KEYS.crosswordVerticalSubmissions,
+      state.crosswordVerticalSubmissions,
+    );
+    await this.sendEvent(state.meta, ws, "crossword.vertical_answer_accepted", {
+      itemId: round.itemId,
+      submissionId: record.submissionId,
+    });
   }
 
   private scheduleAnswerCount(): void {
@@ -689,7 +861,7 @@ export class GameRoom extends DurableObject<Env> {
       fresh.meta,
       "round.answer_count",
       {
-        answeredCount: Object.keys(fresh.submissions).length,
+        answeredCount: this.answeredCount(fresh),
         eligibleCount: this.eligiblePlayers(fresh).length,
       },
       ["HOST", "SCREEN"],
@@ -703,6 +875,7 @@ export class GameRoom extends DurableObject<Env> {
       this.pendingCountBroadcast = undefined;
     }
     assertTransition("QUESTION_OPEN", "QUESTION_LOCKED");
+    const round = this.currentRound(state);
     for (const submission of Object.values(state.submissions)) {
       const player = state.players[submission.playerId];
       if (!player || player.removed) continue;
@@ -712,6 +885,20 @@ export class GameRoom extends DurableObject<Env> {
         player.totalCorrectResponseMs += submission.responseMs;
       }
     }
+    if (round.kind === "CROSSWORD_HORIZONTAL") {
+      const itemSubmissions = state.crosswordVerticalSubmissions[round.itemId] ?? {};
+      for (const submission of Object.values(itemSubmissions)) {
+        if (submission.contextRoundId !== round.roundId || submission.bonusApplied) continue;
+        const player = state.players[submission.playerId];
+        submission.bonusApplied = true;
+        if (!player || player.removed) continue;
+        player.totalScore += submission.awardedPoints;
+        if (submission.isCorrect) {
+          player.correctCount += 1;
+          player.totalCorrectResponseMs += submission.responseMs;
+        }
+      }
+    }
     state.progress.phase = "QUESTION_LOCKED";
     state.progress.nextAction = "REVEAL_ANSWER";
     state.meta.stateVersion += 1;
@@ -719,10 +906,11 @@ export class GameRoom extends DurableObject<Env> {
       [KEYS.meta]: state.meta,
       [KEYS.players]: state.players,
       [KEYS.progress]: state.progress,
+      [KEYS.crosswordVerticalSubmissions]: state.crosswordVerticalSubmissions,
     });
     await scheduleNextAlarm(this.ctx.storage, state.meta, state.progress);
     await this.broadcastEvent(state.meta, "round.locked", {
-      answeredCount: Object.keys(state.submissions).length,
+      answeredCount: this.answeredCount(state, round),
       eligibleCount: this.eligiblePlayers(state).length,
     });
   }
@@ -737,6 +925,7 @@ export class GameRoom extends DurableObject<Env> {
       state.progress.revealedRoundIds.push(round.roundId);
     state.meta.stateVersion += 1;
     await this.ctx.storage.put({ [KEYS.meta]: state.meta, [KEYS.progress]: state.progress });
+    const crosswordVerticalReveal = this.crosswordVerticalReveal(state, round);
     const correct = Object.values(state.submissions).filter((submission) => submission.isCorrect);
     const fastestAt = correct.length
       ? Math.min(...correct.map((submission) => submission.submittedAt))
@@ -750,6 +939,7 @@ export class GameRoom extends DurableObject<Env> {
       {
         roundId: round.roundId,
         reveal: round.revealPayload,
+        crosswordVerticalReveal,
         correctCount: correct.length,
         fastestPlayerIds: state.game.definition.mode === "SPEED_RACE" ? fastestPlayerIds : [],
       },
@@ -757,13 +947,31 @@ export class GameRoom extends DurableObject<Env> {
     );
     for (const player of this.eligiblePlayers(state)) {
       const result = state.submissions[player.playerId];
+      const verticalSubmission = this.crosswordVerticalSubmission(
+        state,
+        round.itemId,
+        player.playerId,
+      );
+      const verticalResult =
+        round.kind === "CROSSWORD_HORIZONTAL" &&
+        verticalSubmission?.contextRoundId === round.roundId
+          ? {
+              isCorrect: verticalSubmission.isCorrect,
+              awardedPoints: verticalSubmission.awardedPoints,
+            }
+          : undefined;
       for (const socket of this.ctx.getWebSockets(`player:${player.playerId}`)) {
         await this.sendEvent(state.meta, socket, "round.revealed", {
           roundId: round.roundId,
           reveal: round.revealPayload,
+          crosswordVerticalReveal,
           result: result
-            ? { isCorrect: result.isCorrect, awardedPoints: result.awardedPoints }
+            ? {
+                isCorrect: result.isCorrect,
+                awardedPoints: result.awardedPoints,
+              }
             : { isCorrect: false, awardedPoints: 0 },
+          verticalResult,
           totalScore: player.totalScore,
           fastest: fastestPlayerIds.includes(player.playerId),
         });
@@ -772,6 +980,7 @@ export class GameRoom extends DurableObject<Env> {
     if (round.kind.startsWith("CROSSWORD")) {
       await this.broadcastEvent(state.meta, "crossword.board_updated", {
         revealedRoundIds: state.progress.revealedRoundIds,
+        crosswordVerticalPoints: this.crosswordVerticalPoints(state, round),
       });
     }
   }
@@ -895,7 +1104,7 @@ export class GameRoom extends DurableObject<Env> {
       totalRounds: state.game.rounds.length,
       playerCount: Object.values(state.players).filter((player) => !player.removed).length,
       eligibleCount: eligible.length,
-      answeredCount: Object.keys(state.submissions).length,
+      answeredCount: round ? this.answeredCount(state, round) : 0,
       openedAt: state.progress.openedAt,
       deadlineAt: state.progress.deadlineAt,
       countdownEndsAt: state.progress.countdownEndsAt,
@@ -903,6 +1112,8 @@ export class GameRoom extends DurableObject<Env> {
       currentRound:
         round && state.progress.phase !== "LOBBY" ? filterRoundForPublic(round) : undefined,
       reveal: round && revealVisible ? round.revealPayload : undefined,
+      crosswordVerticalReveal:
+        round && revealVisible ? this.crosswordVerticalReveal(state, round) : undefined,
       leaderboard: ["LEADERBOARD", "FINISHED"].includes(state.progress.phase)
         ? leaderboard
         : undefined,
@@ -916,6 +1127,7 @@ export class GameRoom extends DurableObject<Env> {
           )
           .map((candidate) => [candidate.roundId, candidate.revealPayload]),
       ),
+      crosswordVerticalPoints: round ? this.crosswordVerticalPoints(state, round) : undefined,
       finishedDeleteAt: state.meta.finishedDeleteAt,
     };
     if (attachment.role === "HOST") {
@@ -925,12 +1137,15 @@ export class GameRoom extends DurableObject<Env> {
         avatarId: player.avatarId,
         removed: player.removed,
         connected: this.ctx.getWebSockets(`player:${player.playerId}`).length > 0,
-        answered: Boolean(state.submissions[player.playerId]),
+        answered: round ? this.hasAnsweredCurrentRound(state, round, player.playerId) : false,
       }));
     }
     if (attachment.role === "PLAYER" && attachment.playerId) {
       const player = state.players[attachment.playerId];
       const result = state.submissions[attachment.playerId];
+      const verticalSubmission = round?.groupId
+        ? this.crosswordVerticalSubmission(state, round.itemId, attachment.playerId)
+        : undefined;
       if (player) {
         snapshot.self = {
           playerId: player.playerId,
@@ -941,9 +1156,25 @@ export class GameRoom extends DurableObject<Env> {
           eligibleFromRoundIndex: player.eligibleFromRoundIndex,
           submitted: Boolean(result),
           currentResult:
-            result && revealVisible
-              ? { isCorrect: result.isCorrect, awardedPoints: result.awardedPoints }
+            revealVisible && result
+              ? {
+                  isCorrect: result.isCorrect,
+                  awardedPoints: result.awardedPoints,
+                }
               : undefined,
+          crosswordVerticalGuess: verticalSubmission
+            ? {
+                itemId: verticalSubmission.itemId,
+                submitted: true,
+                result:
+                  revealVisible && verticalSubmission.contextRoundId === round?.roundId
+                    ? {
+                        isCorrect: verticalSubmission.isCorrect,
+                        awardedPoints: verticalSubmission.awardedPoints,
+                      }
+                    : undefined,
+              }
+            : undefined,
           rank: leaderboard.find((entry) => entry.playerId === player.playerId)?.rank,
         };
       }
@@ -1022,7 +1253,11 @@ export class GameRoom extends DurableObject<Env> {
     await this.sendEvent(
       currentMeta,
       socket,
-      code === "DUPLICATE_ANSWER" || code === "LATE_ANSWER" ? "answer.rejected" : "server.error",
+      code === "DUPLICATE_ANSWER" ||
+        code === "DUPLICATE_CROSSWORD_VERTICAL" ||
+        code === "LATE_ANSWER"
+        ? "answer.rejected"
+        : "server.error",
       { code, message },
     );
   }

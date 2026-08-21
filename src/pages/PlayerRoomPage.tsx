@@ -1,6 +1,6 @@
 import type { PlayerAnswer } from "@shared/game";
 import type { RoomSnapshot } from "@shared/room";
-import { CheckCircle2, DoorOpen, PauseCircle, Send, Trophy, XCircle } from "lucide-react";
+import { CheckCircle2, DoorOpen, KeyRound, PauseCircle, Send, Trophy, XCircle } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Brand } from "../components/shared/Brand";
@@ -96,16 +96,29 @@ function PlayerStage({
   const [choice, setChoice] = useState<string>();
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [verticalOpen, setVerticalOpen] = useState(false);
+  const [verticalText, setVerticalText] = useState("");
+  const [verticalSubmitting, setVerticalSubmitting] = useState(false);
   const deletionRemaining = useCountdown(snapshot.finishedDeleteAt, offset);
   const roundId = snapshot.currentRound?.roundId;
   useEffect(() => {
     setChoice(undefined);
     setText("");
     setSubmitting(false);
+    setVerticalOpen(false);
+    setVerticalText("");
+    setVerticalSubmitting(false);
   }, [roundId]);
   useEffect(() => {
     if (snapshot.self?.submitted) setSubmitting(false);
   }, [snapshot.self?.submitted]);
+  useEffect(() => {
+    if (snapshot.self?.crosswordVerticalGuess?.submitted) {
+      setVerticalSubmitting(false);
+      setVerticalOpen(false);
+      setVerticalText("");
+    }
+  }, [snapshot.self?.crosswordVerticalGuess?.submitted]);
 
   if (snapshot.phase === "LOBBY")
     return (
@@ -217,6 +230,25 @@ function PlayerStage({
     )
       setSubmitting(false);
   };
+  const verticalGuess =
+    snapshot.self?.crosswordVerticalGuess?.itemId === round.itemId
+      ? snapshot.self.crosswordVerticalGuess
+      : undefined;
+  const canGuessVertical =
+    round.kind === "CROSSWORD_HORIZONTAL" && Boolean(round.publicPayload.crossword?.verticalClue);
+  const submitVertical = (event: FormEvent) => {
+    event.preventDefault();
+    const value = verticalText.trim();
+    if (!value || !connected || verticalSubmitting || verticalGuess?.submitted) return;
+    setVerticalSubmitting(true);
+    if (
+      !send({
+        type: "player.submit_crossword_vertical",
+        payload: { roundId: round.roundId, submissionId: crypto.randomUUID(), value },
+      })
+    )
+      setVerticalSubmitting(false);
+  };
   const reveal = snapshot.phase === "ANSWER_REVEAL";
   return (
     <div className="player-stage question">
@@ -295,6 +327,68 @@ function PlayerStage({
           ) : null}
         </form>
       ) : null}
+      {snapshot.phase === "QUESTION_OPEN" && canGuessVertical ? (
+        <div className="vertical-guess">
+          {verticalGuess?.submitted ? (
+            <div className="vertical-guess-used" role="status" aria-live="polite">
+              <CheckCircle2 />
+              <div>
+                <strong>Đã dùng lượt giải hàng dọc</strong>
+                <span>Đáp án sẽ chưa được mở để những người khác tiếp tục đoán.</span>
+              </div>
+            </div>
+          ) : verticalOpen ? (
+            <form onSubmit={submitVertical} className="vertical-guess-form">
+              <div className="vertical-guess-heading">
+                <span>Gợi ý hàng dọc</span>
+                <strong>{round.publicPayload.crossword?.verticalClue}</strong>
+              </div>
+              <label className="text-answer">
+                <span>Đáp án hàng dọc</span>
+                <input
+                  value={verticalText}
+                  onChange={(event) => setVerticalText(event.target.value)}
+                  disabled={verticalSubmitting}
+                  maxLength={240}
+                  autoComplete="off"
+                />
+              </label>
+              <small>
+                Chỉ được gửi một lần · Đúng nhận tối đa{" "}
+                <strong>
+                  {(snapshot.crosswordVerticalPoints ?? 0).toLocaleString("vi-VN")} điểm
+                </strong>
+              </small>
+              <div className="vertical-guess-actions">
+                <button
+                  className="button secondary"
+                  type="button"
+                  disabled={verticalSubmitting}
+                  onClick={() => setVerticalOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="button gold"
+                  type="submit"
+                  disabled={!verticalText.trim() || !connected || verticalSubmitting}
+                >
+                  <Send /> {verticalSubmitting ? "Đang gửi…" : "Chốt đáp án hàng dọc"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              className="button secondary large full vertical-guess-trigger"
+              type="button"
+              onClick={() => setVerticalOpen(true)}
+            >
+              <KeyRound /> Giải hàng dọc ·{" "}
+              {(snapshot.crosswordVerticalPoints ?? 0).toLocaleString("vi-VN")} điểm
+            </button>
+          )}
+        </div>
+      ) : null}
       {snapshot.phase === "QUESTION_LOCKED" ? (
         <div className="waiting-card">
           {snapshot.self?.submitted ? (
@@ -306,21 +400,47 @@ function PlayerStage({
         </div>
       ) : null}
       {reveal ? (
-        <div
-          className={`personal-reveal ${snapshot.self?.currentResult?.isCorrect ? "correct" : "incorrect"}`}
-        >
-          {snapshot.self?.currentResult?.isCorrect ? <CheckCircle2 /> : <XCircle />}
-          <div>
-            <span>{snapshot.self?.currentResult?.isCorrect ? "Chính xác!" : "Chưa đúng"}</span>
-            <strong>+{snapshot.self?.currentResult?.awardedPoints ?? 0} điểm</strong>
+        <>
+          <div
+            className={`personal-reveal ${snapshot.self?.currentResult?.isCorrect ? "correct" : "incorrect"}`}
+          >
+            {snapshot.self?.currentResult?.isCorrect ? <CheckCircle2 /> : <XCircle />}
+            <div>
+              <span>{snapshot.self?.currentResult?.isCorrect ? "Chính xác!" : "Chưa đúng"}</span>
+              <strong>+{snapshot.self?.currentResult?.awardedPoints ?? 0} điểm</strong>
+            </div>
+            <div className="correct-answer">
+              <small>Đáp án</small>
+              <strong>{snapshot.reveal?.answer}</strong>
+              {snapshot.reveal?.bibleReference ? <em>{snapshot.reveal.bibleReference}</em> : null}
+              <p>{snapshot.reveal?.explanation}</p>
+            </div>
           </div>
-          <div className="correct-answer">
-            <small>Đáp án</small>
-            <strong>{snapshot.reveal?.answer}</strong>
-            {snapshot.reveal?.bibleReference ? <em>{snapshot.reveal.bibleReference}</em> : null}
-            <p>{snapshot.reveal?.explanation}</p>
-          </div>
-        </div>
+          {verticalGuess?.result ? (
+            <div
+              className={`vertical-guess-result ${verticalGuess.result.isCorrect ? "correct" : "incorrect"}`}
+              role="status"
+            >
+              {verticalGuess.result.isCorrect ? <CheckCircle2 /> : <XCircle />}
+              <div>
+                <span>Hàng dọc: {verticalGuess.result.isCorrect ? "Chính xác!" : "Chưa đúng"}</span>
+                <strong>+{verticalGuess.result.awardedPoints} điểm thưởng</strong>
+                <small>Ô hàng dọc vẫn được giữ kín cho những người chơi khác.</small>
+              </div>
+            </div>
+          ) : null}
+          {snapshot.crosswordVerticalReveal ? (
+            <div className="crossword-final-answer">
+              <span>Đáp án hàng dọc</span>
+              <strong>{snapshot.crosswordVerticalReveal.answer}</strong>
+              <small>{snapshot.crosswordVerticalReveal.clue}</small>
+              {snapshot.crosswordVerticalReveal.bibleReference ? (
+                <em>{snapshot.crosswordVerticalReveal.bibleReference}</em>
+              ) : null}
+              <p>{snapshot.crosswordVerticalReveal.explanation}</p>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

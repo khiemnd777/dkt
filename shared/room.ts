@@ -64,6 +64,12 @@ export interface SubmissionRecord {
   submittedAt: number;
 }
 
+export interface CrosswordVerticalSubmissionRecord extends SubmissionRecord {
+  itemId: string;
+  contextRoundId: string;
+  bonusApplied: boolean;
+}
+
 export interface WebSocketTicket {
   ticketHash: string;
   role: SessionRole;
@@ -79,6 +85,13 @@ export interface LeaderboardEntry {
   totalScore: number;
   correctCount: number;
   totalCorrectResponseMs: number;
+}
+
+export interface CrosswordVerticalReveal {
+  clue: string;
+  answer: string;
+  bibleReference?: string;
+  explanation?: string;
 }
 
 export interface PublicRoomMetadata {
@@ -106,6 +119,7 @@ export interface RoomSnapshot {
   pausedRemainingMs?: number;
   currentRound?: Omit<RuntimeRound, "privateAnswer" | "revealPayload">;
   reveal?: RuntimeRound["revealPayload"];
+  crosswordVerticalReveal?: CrosswordVerticalReveal;
   leaderboard?: LeaderboardEntry[];
   players?: Array<
     Pick<Player, "playerId" | "displayName" | "avatarId" | "removed"> & {
@@ -124,9 +138,15 @@ export interface RoomSnapshot {
   > & {
     submitted: boolean;
     currentResult?: Pick<SubmissionRecord, "isCorrect" | "awardedPoints">;
+    crosswordVerticalGuess?: {
+      itemId: string;
+      submitted: true;
+      result?: Pick<SubmissionRecord, "isCorrect" | "awardedPoints">;
+    };
     rank?: number;
   };
   revealedRoundIds: string[];
   crosswordReveals?: Record<string, RuntimeRound["revealPayload"]>;
+  crosswordVerticalPoints?: number;
   finishedDeleteAt?: number;
 }

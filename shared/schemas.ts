@@ -101,7 +101,7 @@ export const crosswordItemSchema = z
     type: z.literal("CROSSWORD"),
     title: plain(1, 120),
     horizontalDurationSec: duration,
-    verticalDurationSec: duration,
+    verticalDurationSec: duration.optional(),
     verticalClue: plain(1, 300),
     verticalAnswer: plain(1, 120),
     horizontalRows: z

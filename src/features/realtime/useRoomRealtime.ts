@@ -74,7 +74,9 @@ function applyEvent(
         countdownEndsAt: Number(payload.countdownEndsAt),
         currentRound: undefined,
         reveal: undefined,
+        crosswordVerticalReveal: undefined,
         answeredCount: 0,
+        crosswordVerticalPoints: undefined,
       };
     case "round.opened": {
       const opened = payload as unknown as {
@@ -82,19 +84,33 @@ function applyEvent(
         openedAt: number;
         deadlineAt: number;
         eligibleCount: number;
+        answeredCount: number;
+        crosswordVerticalPoints?: number;
       };
+      const currentVerticalGuess = current.self?.crosswordVerticalGuess;
+      const existingVerticalGuess =
+        currentVerticalGuess?.itemId === opened.round?.itemId ? currentVerticalGuess : undefined;
       return {
         ...current,
         phase: "QUESTION_OPEN",
         currentRound: opened.round,
+        crosswordVerticalReveal: undefined,
         openedAt: opened.openedAt,
         deadlineAt: opened.deadlineAt,
         pausedRemainingMs: undefined,
         countdownEndsAt: undefined,
         eligibleCount: opened.eligibleCount,
-        answeredCount: 0,
+        answeredCount: opened.answeredCount,
+        crosswordVerticalPoints: opened.crosswordVerticalPoints,
         self: current.self
-          ? { ...current.self, submitted: false, currentResult: undefined }
+          ? {
+              ...current.self,
+              submitted: false,
+              currentResult: undefined,
+              crosswordVerticalGuess: existingVerticalGuess
+                ? { ...existingVerticalGuess, result: undefined }
+                : undefined,
+            }
           : undefined,
       };
     }
@@ -116,6 +132,19 @@ function applyEvent(
       };
     case "answer.accepted":
       return { ...current, self: current.self ? { ...current.self, submitted: true } : undefined };
+    case "crossword.vertical_answer_accepted":
+      return {
+        ...current,
+        self: current.self
+          ? {
+              ...current.self,
+              crosswordVerticalGuess: {
+                itemId: String(payload.itemId),
+                submitted: true,
+              },
+            }
+          : undefined,
+      };
     case "round.answer_count":
       return {
         ...current,
@@ -131,11 +160,17 @@ function applyEvent(
       };
     case "round.revealed": {
       const result = payload.result as { isCorrect: boolean; awardedPoints: number } | undefined;
+      const verticalResult = payload.verticalResult as
+        | { isCorrect: boolean; awardedPoints: number }
+        | undefined;
       const revealedRoundId = current.currentRound?.roundId;
       return {
         ...current,
         phase: "ANSWER_REVEAL",
         reveal: payload.reveal as RoomSnapshot["reveal"],
+        crosswordVerticalReveal: payload.crosswordVerticalReveal as
+          | RoomSnapshot["crosswordVerticalReveal"]
+          | undefined,
         self: current.self
           ? {
               ...current.self,
@@ -144,6 +179,12 @@ function applyEvent(
                   ? payload.totalScore
                   : current.self.totalScore,
               currentResult: result ?? current.self.currentResult,
+              crosswordVerticalGuess: current.self.crosswordVerticalGuess
+                ? {
+                    ...current.self.crosswordVerticalGuess,
+                    result: verticalResult ?? current.self.crosswordVerticalGuess.result,
+                  }
+                : undefined,
             }
           : undefined,
         revealedRoundIds: current.currentRound
@@ -159,7 +200,14 @@ function applyEvent(
       };
     }
     case "crossword.board_updated":
-      return { ...current, revealedRoundIds: payload.revealedRoundIds as string[] };
+      return {
+        ...current,
+        revealedRoundIds: payload.revealedRoundIds as string[],
+        crosswordVerticalPoints:
+          typeof payload.crosswordVerticalPoints === "number"
+            ? payload.crosswordVerticalPoints
+            : current.crosswordVerticalPoints,
+      };
     case "leaderboard.updated":
       return {
         ...current,

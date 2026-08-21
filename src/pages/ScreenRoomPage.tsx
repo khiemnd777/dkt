@@ -173,6 +173,17 @@ function ScreenStage({ snapshot, offset }: { snapshot: RoomSnapshot; offset: num
           <strong>{snapshot.reveal.answer}</strong>
           {snapshot.reveal.bibleReference ? <em>{snapshot.reveal.bibleReference}</em> : null}
           <p>{snapshot.reveal.explanation}</p>
+          {snapshot.crosswordVerticalReveal ? (
+            <div className="screen-vertical-answer">
+              <span>ĐÁP ÁN HÀNG DỌC</span>
+              <strong>{snapshot.crosswordVerticalReveal.answer}</strong>
+              <small>{snapshot.crosswordVerticalReveal.clue}</small>
+              {snapshot.crosswordVerticalReveal.bibleReference ? (
+                <em>{snapshot.crosswordVerticalReveal.bibleReference}</em>
+              ) : null}
+              <p>{snapshot.crosswordVerticalReveal.explanation}</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

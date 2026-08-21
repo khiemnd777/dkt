@@ -1,9 +1,11 @@
 import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
+import type { GameDefinition } from "../../shared/game";
+import type { Player, RoomProgress } from "../../shared/room";
 import type { Env } from "../../worker/env";
 import worker from "../../worker/index";
-import { smallGame } from "../fixtures/games";
+import { crosswordGame, smallGame } from "../fixtures/games";
 
 const runtimeEnv = env as unknown as Env;
 
@@ -44,11 +46,11 @@ async function pageRequest(host: string, path: string, init?: RequestInit): Prom
   return worker.fetch(new Request(`https://${host}${path}`, init), pageEnv);
 }
 
-async function createRoom() {
+async function createRoom(game: GameDefinition = smallGame) {
   const response = await request("/api/rooms", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ game: smallGame }),
+    body: JSON.stringify({ game }),
   });
   expect(response.status).toBe(201);
   return response.json() as Promise<{
@@ -56,6 +58,16 @@ async function createRoom() {
     hostToken: string;
     screenToken: string;
   }>;
+}
+
+async function joinPlayer(roomCode: string) {
+  const response = await request(`/api/rooms/${roomCode}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ displayName: "Người chơi", avatarId: "🦁" }),
+  });
+  expect(response.status).toBe(201);
+  return response.json() as Promise<{ playerId: string; playerToken: string }>;
 }
 
 async function websocket(
@@ -91,6 +103,47 @@ function nextMessage(socket: WebSocket): Promise<{ type: string; payload: unknow
       },
       { once: true },
     );
+  });
+}
+
+function messageInbox(socket: WebSocket) {
+  type Message = { type: string; payload: unknown };
+  const queued: Message[] = [];
+  const waiting: Array<(message: Message) => void> = [];
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data)) as Message;
+    const resolve = waiting.shift();
+    if (resolve) resolve(message);
+    else queued.push(message);
+  });
+  const next = () =>
+    new Promise<Message>((resolve, reject) => {
+      const existing = queued.shift();
+      if (existing) return resolve(existing);
+      const timeout = setTimeout(() => reject(new Error("WebSocket message timeout")), 2_000);
+      waiting.push((message) => {
+        clearTimeout(timeout);
+        resolve(message);
+      });
+    });
+  return {
+    async nextType(type: string): Promise<Message> {
+      for (;;) {
+        const message = await next();
+        if (message.type === type) return message;
+      }
+    },
+  };
+}
+
+async function forceOpenRound(roomCode: string): Promise<void> {
+  const stub = runtimeEnv.GAME_ROOMS.get(runtimeEnv.GAME_ROOMS.idFromName(roomCode));
+  await runInDurableObject(stub, async (instance, state) => {
+    const progress = await state.storage.get<RoomProgress>("room:progress");
+    if (!progress) throw new Error("Missing room progress");
+    progress.countdownEndsAt = Date.now() - 1;
+    await state.storage.put("room:progress", progress);
+    await (instance as unknown as { alarm(): Promise<void> }).alarm();
   });
 }
 
@@ -281,5 +334,113 @@ describe("GameRoom integration", () => {
     expect((await deleted).type).toBe("room.deleted");
     const metadata = await request(`/api/rooms/${room.roomCode}/public`);
     expect(metadata.status).toBe(404);
+  });
+
+  it("awards one hidden vertical guess during a horizontal round and decreases later value", async () => {
+    const game = structuredClone(crosswordGame);
+    game.mode = "TURN_BASED";
+    const room = await createRoom(game);
+    const player = await joinPlayer(room.roomCode);
+    const hostSocket = await websocket(room.roomCode, "HOST", room.hostToken);
+    const hostInbox = messageInbox(hostSocket);
+    await hostInbox.nextType("room.snapshot");
+    const playerSocket = await websocket(room.roomCode, "PLAYER", player.playerToken);
+    const playerInbox = messageInbox(playerSocket);
+    expect((await playerInbox.nextType("room.snapshot")).payload).toMatchObject({ totalRounds: 3 });
+
+    hostSocket.send(JSON.stringify({ type: "host.start_game" }));
+    await playerInbox.nextType("game.countdown_started");
+    await forceOpenRound(room.roomCode);
+    const opened = await playerInbox.nextType("round.opened");
+    expect(opened.payload).toMatchObject({ crosswordVerticalPoints: 2000 });
+    expect(JSON.stringify(opened.payload)).toContain("Điều còn lại lớn nhất?");
+
+    playerSocket.send(
+      JSON.stringify({
+        type: "player.submit_crossword_vertical",
+        payload: {
+          roundId: "crossword-1:h:r1",
+          submissionId: "vertical-guess-1",
+          value: "TIN",
+        },
+      }),
+    );
+    expect(
+      (await playerInbox.nextType("crossword.vertical_answer_accepted")).payload,
+    ).toMatchObject({
+      itemId: "crossword-1",
+    });
+
+    playerSocket.send(
+      JSON.stringify({
+        type: "player.submit_crossword_vertical",
+        payload: {
+          roundId: "crossword-1:h:r1",
+          submissionId: "vertical-guess-2",
+          value: "TIN",
+        },
+      }),
+    );
+    expect((await playerInbox.nextType("answer.rejected")).payload).toMatchObject({
+      code: "DUPLICATE_CROSSWORD_VERTICAL",
+    });
+
+    playerSocket.send(
+      JSON.stringify({
+        type: "player.submit_answer",
+        payload: {
+          roundId: "crossword-1:h:r1",
+          submissionId: "horizontal-answer-1",
+          answer: { type: "TEXT", value: "TÔ-MA" },
+        },
+      }),
+    );
+    await playerInbox.nextType("answer.accepted");
+    await playerInbox.nextType("round.locked");
+
+    const stub = runtimeEnv.GAME_ROOMS.get(runtimeEnv.GAME_ROOMS.idFromName(room.roomCode));
+    const stored = await runInDurableObject(stub, async (_instance, state) => {
+      const players = await state.storage.get<Record<string, Player>>("room:players");
+      const guesses = await state.storage.get<
+        Record<string, Record<string, { awardedPoints: number; bonusApplied: boolean }>>
+      >("room:crossword-vertical-submissions");
+      return {
+        currentPlayer: players?.[player.playerId],
+        guess: guesses?.["crossword-1"]?.[player.playerId],
+      };
+    });
+    expect(stored.currentPlayer).toMatchObject({ totalScore: 3000, correctCount: 2 });
+    expect(stored.guess).toMatchObject({ awardedPoints: 2000, bonusApplied: true });
+
+    hostSocket.send(JSON.stringify({ type: "host.reveal_answer" }));
+    const reveal = await playerInbox.nextType("round.revealed");
+    expect(reveal.payload).toMatchObject({
+      reveal: { answer: "TÔ-MA" },
+      verticalResult: { isCorrect: true, awardedPoints: 2000 },
+      totalScore: 3000,
+    });
+    expect(JSON.stringify(reveal.payload)).not.toContain('"answer":"TIN"');
+
+    const reconnectedSocket = await websocket(room.roomCode, "PLAYER", player.playerToken);
+    const reconnectedInbox = messageInbox(reconnectedSocket);
+    expect((await reconnectedInbox.nextType("room.snapshot")).payload).toMatchObject({
+      self: {
+        totalScore: 3000,
+        crosswordVerticalGuess: {
+          itemId: "crossword-1",
+          submitted: true,
+          result: { isCorrect: true, awardedPoints: 2000 },
+        },
+      },
+    });
+
+    hostSocket.send(JSON.stringify({ type: "host.show_leaderboard" }));
+    await playerInbox.nextType("leaderboard.updated");
+    hostSocket.send(JSON.stringify({ type: "host.continue" }));
+    await playerInbox.nextType("game.countdown_started");
+    await forceOpenRound(room.roomCode);
+    expect((await playerInbox.nextType("round.opened")).payload).toMatchObject({
+      crosswordVerticalPoints: 1330,
+    });
   });
 });

@@ -90,6 +90,7 @@ export function compileGame(game: GameDefinition): RuntimeRound[] {
               rowIndex,
               rowCount: item.horizontalRows.length,
               rows: rowShape,
+              verticalClue: item.verticalClue,
             },
           },
           privateAnswer: {
@@ -106,30 +107,6 @@ export function compileGame(game: GameDefinition): RuntimeRound[] {
             specialLetter,
           },
         });
-      });
-      rounds.push({
-        roundId: `${item.id}:v`,
-        itemId: item.id,
-        groupId: item.id,
-        index: rounds.length,
-        kind: "CROSSWORD_VERTICAL",
-        publicPayload: {
-          prompt: item.verticalClue,
-          crossword: {
-            title: item.title,
-            rowIndex: item.horizontalRows.length,
-            rowCount: item.horizontalRows.length,
-            rows: rowShape,
-          },
-        },
-        privateAnswer: { type: "TEXT", acceptedNormalized: accepted(item.verticalAnswer, []) },
-        durationSec: item.verticalDurationSec,
-        scoreMultiplier: 2,
-        revealPayload: {
-          answer: item.verticalAnswer,
-          bibleReference: item.bibleReference,
-          explanation: item.explanation,
-        },
       });
     }
   }

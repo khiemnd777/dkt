@@ -60,7 +60,7 @@ const draftItemSchema = z.discriminatedUnion("type", [
       type: z.literal("CROSSWORD"),
       title: text(120),
       horizontalDurationSec: duration,
-      verticalDurationSec: duration,
+      verticalDurationSec: duration.optional(),
       verticalClue: text(300),
       verticalAnswer: text(120),
       horizontalRows: z

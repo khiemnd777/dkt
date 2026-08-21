@@ -28,3 +28,14 @@ export function calculateScore(input: {
   const raw = (500 + 500 * remainingRatio) * input.multiplier;
   return Math.round(raw / 10) * 10;
 }
+
+export function calculateCrosswordVerticalScore(input: {
+  isCorrect: boolean;
+  revealedCells: number;
+  totalCells: number;
+}): number {
+  if (!input.isCorrect || input.totalCells < 1) return 0;
+  const remainingCells = Math.max(0, input.totalCells - input.revealedCells);
+  const raw = (2_000 * remainingCells) / input.totalCells;
+  return Math.round(raw / 10) * 10;
+}

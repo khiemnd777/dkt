@@ -2311,6 +2311,113 @@ textarea:focus {
   color: var(--green);
   font-weight: 800;
 }
+.vertical-guess {
+  margin-top: 18px;
+}
+.vertical-guess-trigger {
+  border-color: #d6b451;
+  color: var(--navy);
+  background: #fff9e8;
+}
+.vertical-guess-form,
+.vertical-guess-used,
+.vertical-guess-result {
+  padding: 18px;
+  border: 1px solid #ead58f;
+  border-radius: 17px;
+  background: #fff9e8;
+}
+.vertical-guess-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vertical-guess-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.vertical-guess-heading span,
+.vertical-guess-form > small,
+.vertical-guess-used span,
+.vertical-guess-result small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.vertical-guess-heading strong {
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+.vertical-guess-actions {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.4fr) 1fr;
+  gap: 10px;
+}
+.vertical-guess-used,
+.vertical-guess-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+.vertical-guess-used {
+  color: var(--green);
+}
+.vertical-guess-used svg,
+.vertical-guess-result svg {
+  width: 25px;
+  min-width: 25px;
+}
+.vertical-guess-used > div,
+.vertical-guess-result > div {
+  display: flex;
+  flex-direction: column;
+}
+.vertical-guess-used strong,
+.vertical-guess-result span {
+  font-weight: 850;
+}
+.vertical-guess-result {
+  margin-top: 12px;
+}
+.vertical-guess-result.correct {
+  border-color: #a9d8bf;
+  color: var(--green);
+  background: #eaf7f0;
+}
+.vertical-guess-result.incorrect {
+  border-color: #e8baba;
+  color: var(--red);
+  background: #fbeeee;
+}
+.crossword-final-answer {
+  margin-top: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--gold);
+  border-radius: 18px;
+  color: var(--navy);
+  background: #fff7dc;
+  text-align: center;
+}
+.crossword-final-answer > span {
+  color: #8b6710;
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.crossword-final-answer > strong {
+  color: var(--navy);
+  font-size: clamp(2rem, 8vw, 3.5rem);
+}
+.crossword-final-answer > small,
+.crossword-final-answer > em {
+  color: var(--muted);
+}
+.crossword-final-answer > p {
+  margin-bottom: 0;
+}
 .waiting-card {
   padding: 22px;
   border-radius: 17px;
@@ -2701,6 +2808,28 @@ textarea:focus {
 .screen-reveal em,
 .screen-reveal p {
   color: #cad3df;
+}
+.screen-vertical-answer {
+  width: 100%;
+  margin-top: 2vh;
+  padding-top: 2vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top: 1px solid rgba(244, 205, 89, 0.45);
+}
+.screen-vertical-answer > span {
+  color: var(--gold-2);
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+.screen-vertical-answer > strong {
+  color: #fff;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+}
+.screen-vertical-answer > small {
+  color: #cad3df;
+  font-size: clamp(1rem, 1.7vw, 1.5rem);
 }
 .locked-label {
   padding: 11px 18px;

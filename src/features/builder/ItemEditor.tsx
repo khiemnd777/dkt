@@ -228,7 +228,7 @@ function CrosswordEditor({
     <div className="editor-form crossword-editor">
       <div className="crossword-intro">
         <strong>Ô chữ Kinh Thánh</strong>
-        <span>Mỗi hàng ngang là một vòng tính điểm; từ khóa dọc được nhân đôi.</span>
+        <span>Mỗi hàng ngang là một vòng; từ khóa dọc có thể được đoán sớm với điểm giảm dần.</span>
       </div>
       <label className="prominent">
         Tên ô chữ
@@ -265,18 +265,6 @@ function CrosswordEditor({
             value={item.horizontalDurationSec}
             onChange={(event) =>
               update({ ...item, horizontalDurationSec: Number(event.target.value) })
-            }
-          />
-        </label>
-        <label>
-          Thời gian từ khóa dọc
-          <input
-            type="number"
-            min="5"
-            max="120"
-            value={item.verticalDurationSec}
-            onChange={(event) =>
-              update({ ...item, verticalDurationSec: Number(event.target.value) })
             }
           />
         </label>

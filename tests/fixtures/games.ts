@@ -37,7 +37,6 @@ export const crosswordGame: GameDefinition = {
       type: "CROSSWORD",
       title: "Nhân vật Kinh Thánh",
       horizontalDurationSec: 20,
-      verticalDurationSec: 30,
       verticalClue: "Điều còn lại lớn nhất?",
       verticalAnswer: "TIN",
       horizontalRows: [

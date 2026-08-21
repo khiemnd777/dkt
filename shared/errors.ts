@@ -10,6 +10,7 @@ export const ERROR_MESSAGES = {
   INVALID_TICKET: "Vé kết nối không hợp lệ hoặc đã hết hạn.",
   INVALID_PHASE: "Thao tác này chưa thể thực hiện lúc này.",
   DUPLICATE_ANSWER: "Bạn đã trả lời câu này.",
+  DUPLICATE_CROSSWORD_VERTICAL: "Bạn đã dùng lượt giải hàng dọc của ô chữ này.",
   LATE_ANSWER: "Đã hết thời gian trả lời.",
   NOT_ELIGIBLE: "Bạn sẽ bắt đầu từ câu tiếp theo.",
   RATE_LIMITED: "Thao tác quá nhanh. Vui lòng thử lại sau.",

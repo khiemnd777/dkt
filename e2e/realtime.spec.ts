@@ -152,7 +152,7 @@ test("Scenario B — SPEED_RACE rewards both correct players and more to the fas
   }
 });
 
-test("Scenario C — crossword rows reveal progressively and vertical round scores double", async ({
+test("Scenario C — crossword reveals the vertical answer after the final horizontal row", async ({
   browser,
   request,
 }) => {
@@ -167,7 +167,6 @@ test("Scenario C — crossword rows reveal progressively and vertical round scor
         type: "CROSSWORD",
         title: "Nhân vật",
         horizontalDurationSec: 10,
-        verticalDurationSec: 10,
         verticalClue: "Từ khóa dọc",
         verticalAnswer: "ÔÁÔ",
         horizontalRows: [
@@ -212,15 +211,35 @@ test("Scenario C — crossword rows reveal progressively and vertical round scor
     );
     expect(Math.max(...xPositions) - Math.min(...xPositions)).toBeLessThanOrEqual(1);
 
-    const answers = ["TÔ-MA", "I-SÁC", "NÔ-Ê", "ÔÁÔ"];
+    await expect(
+      player.page.getByRole("button", { name: /Giải hàng dọc.*2.000 điểm/ }),
+    ).toBeVisible({
+      timeout: 15_000,
+    });
+    await player.page.getByRole("button", { name: /Giải hàng dọc/ }).click();
+    await expect(player.page.getByText("Từ khóa dọc", { exact: true })).toBeVisible();
+    await player.page.getByLabel("Đáp án hàng dọc").fill("ÔÁÔ");
+    await player.page.getByRole("button", { name: "Chốt đáp án hàng dọc" }).click();
+    await expect(player.page.getByText("Đã dùng lượt giải hàng dọc")).toBeVisible();
+    await expect(screen.page.getByText("ÔÁÔ", { exact: true })).toHaveCount(0);
+
+    const answers = ["TÔ-MA", "I-SÁC", "NÔ-Ê"];
     for (let index = 0; index < answers.length; index += 1) {
       await expect(player.page.getByLabel("Câu trả lời của bạn")).toBeVisible({ timeout: 15_000 });
       await player.page.getByLabel("Câu trả lời của bạn").fill(answers[index]);
       await player.page.getByRole("button", { name: /Gửi câu trả lời/ }).click();
       await host.page.getByRole("button", { name: "Hiện đáp án" }).click();
       await expect(screen.page.getByText(answers[index], { exact: true })).toBeVisible();
-      if (index === answers.length - 1) {
-        await expect(player.page.getByText("+2000 điểm")).toBeVisible();
+      if (index === 0) {
+        await expect(player.page.getByText("Hàng dọc: Chính xác!")).toBeVisible();
+        await expect(player.page.getByText("+2000 điểm thưởng")).toBeVisible();
+      }
+      if (index < answers.length - 1) {
+        await expect(screen.page.getByText("ÔÁÔ", { exact: true })).toHaveCount(0);
+      } else {
+        await expect(screen.page.getByText("ÔÁÔ", { exact: true })).toBeVisible();
+        await expect(player.page.getByText("Đáp án hàng dọc")).toBeVisible();
+        await expect(player.page.getByText("ÔÁÔ", { exact: true })).toBeVisible();
       }
       await host.page.getByRole("button", { name: "Hiện bảng xếp hạng" }).click();
       await host.page

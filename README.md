@@ -56,15 +56,16 @@ Các mutation của một phòng được đưa qua hàng đợi tuần tự tro
 
 ## Luật chơi quan trọng
 
-- Mỗi active player được trả lời đúng một lần mỗi round; retry cùng `submissionId` là idempotent.
+- Mỗi active player được trả lời đúng một lần mỗi round; riêng hàng dọc ô chữ chỉ được đoán một lần trong toàn bộ ô chữ. Retry cùng `submissionId` là idempotent.
 - Server nhận thời gian, từ chối đáp án sau deadline và không tin timestamp/score từ client.
 - Pause dừng deadline và nhận đáp án; resume tạo deadline mới từ thời gian còn lại. SPEED_RACE loại thời gian pause khỏi response time.
-- Theo lượt: 1.000 điểm cho round thường/hàng ngang, 2.000 cho từ khóa dọc.
-- Đua tốc độ: 500–1.000 điểm cho round thường, 1.000–2.000 cho từ khóa dọc; làm tròn 10 điểm.
+- Theo lượt: 1.000 điểm cho round thường/hàng ngang.
+- Đua tốc độ: 500–1.000 điểm cho round thường/hàng ngang; làm tròn 10 điểm.
+- Từ khóa dọc có tối đa 2.000 điểm ở cả hai chế độ, giảm tuyến tính theo số ký tự đặc biệt đã được mở và bằng 0 khi toàn bộ hàng ngang đã hiện. Điểm đoán đúng được cộng trong vòng hàng ngang đang chơi.
 - Equal scores chia sẻ competition rank (`1, 1, 3`). Chế độ tốc độ thêm correct count và tổng response time làm tie-break.
 - Đáp án riêng không có trong player/screen snapshot trước reveal.
 - Trả lời ngắn chỉ so khớp normalized exact form và alias rõ ràng; không fuzzy/AI matching.
-- Ô chữ có 3–10 hàng, cell theo grapheme tiếng Việt; từng hàng được reveal rồi mới mở từ khóa dọc nhân đôi.
+- Ô chữ có 3–10 hàng, cell theo grapheme tiếng Việt. Trong mỗi vòng hàng ngang, người chơi có thể dùng nút giải hàng dọc; đáp án dọc không được reveal cho người khác cho tới khi đáp án hàng ngang cuối được mở.
 
 ## Vòng đời và xóa dữ liệu
 

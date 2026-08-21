@@ -3,7 +3,11 @@ import { crosswordItemSchema } from "../../shared/schemas";
 import { answerCells, normalizeAnswer } from "../../shared/text";
 import { rankPlayers } from "../../worker/room/ranking";
 import { compileGame } from "../../worker/room/round-compiler";
-import { calculateScore, isCorrectAnswer } from "../../worker/room/scoring";
+import {
+  calculateCrosswordVerticalScore,
+  calculateScore,
+  isCorrectAnswer,
+} from "../../worker/room/scoring";
 import { filterRoundForPublic } from "../../worker/room/snapshot-filter";
 import { assertTransition, canTransition } from "../../worker/room/state-machine";
 import { crosswordGame, smallGame } from "../fixtures/games";
@@ -126,19 +130,36 @@ describe("round evaluation and scoring", () => {
       }),
     ).toBe(1500);
   });
+
+  it("decreases crossword vertical points as special cells are revealed", () => {
+    expect(
+      calculateCrosswordVerticalScore({ isCorrect: true, revealedCells: 0, totalCells: 3 }),
+    ).toBe(2000);
+    expect(
+      calculateCrosswordVerticalScore({ isCorrect: true, revealedCells: 1, totalCells: 3 }),
+    ).toBe(1330);
+    expect(
+      calculateCrosswordVerticalScore({ isCorrect: true, revealedCells: 2, totalCells: 3 }),
+    ).toBe(670);
+    expect(
+      calculateCrosswordVerticalScore({ isCorrect: true, revealedCells: 3, totalCells: 3 }),
+    ).toBe(0);
+    expect(
+      calculateCrosswordVerticalScore({ isCorrect: false, revealedCells: 0, totalCells: 3 }),
+    ).toBe(0);
+  });
 });
 
 describe("crossword compilation and validation", () => {
-  it("flattens horizontal rows and the double-value vertical round", () => {
+  it("flattens only horizontal rows and exposes the vertical clue for early guesses", () => {
     const rounds = compileGame(crosswordGame);
-    expect(rounds).toHaveLength(4);
+    expect(rounds).toHaveLength(3);
     expect(rounds.map((round) => round.kind)).toEqual([
       "CROSSWORD_HORIZONTAL",
       "CROSSWORD_HORIZONTAL",
       "CROSSWORD_HORIZONTAL",
-      "CROSSWORD_VERTICAL",
     ]);
-    expect(rounds[3].scoreMultiplier).toBe(2);
+    expect(rounds[0].publicPayload.crossword?.verticalClue).toBe("Điều còn lại lớn nhất?");
   });
 
   it("rejects row count mismatch and invalid special cells", () => {

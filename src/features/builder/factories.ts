@@ -37,7 +37,6 @@ export function createItem(type: GameItemType): GameItem {
     type,
     title: "Nhân vật Kinh Thánh",
     horizontalDurationSec: 20,
-    verticalDurationSec: 30,
     verticalClue: "Điều giúp chúng ta vững lòng nơi Chúa?",
     verticalAnswer: "TIN",
     horizontalRows: [

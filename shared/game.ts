@@ -48,7 +48,7 @@ export interface CrosswordItem {
   type: "CROSSWORD";
   title: string;
   horizontalDurationSec: number;
-  verticalDurationSec: number;
+  verticalDurationSec?: number;
   verticalClue: string;
   verticalAnswer: string;
   horizontalRows: CrosswordRow[];
@@ -70,8 +70,7 @@ export type RuntimeRoundKind =
   | "SINGLE_CHOICE"
   | "TRUE_FALSE"
   | "SHORT_ANSWER"
-  | "CROSSWORD_HORIZONTAL"
-  | "CROSSWORD_VERTICAL";
+  | "CROSSWORD_HORIZONTAL";
 
 export interface RuntimeRound {
   roundId: string;
@@ -87,6 +86,7 @@ export interface RuntimeRound {
       rowIndex: number;
       rowCount: number;
       rows: Array<{ id: string; cellCount: number; specialCellIndex: number }>;
+      verticalClue?: string;
     };
   };
   privateAnswer:

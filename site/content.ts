@@ -182,14 +182,14 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         title: "Theo lượt",
         paragraphs: [
-          "Mỗi đáp án đúng trong thời gian quy định nhận 1.000 điểm ở vòng thường hoặc hàng ngang ô chữ. Từ khóa dọc đặc biệt nhận 2.000 điểm. Tốc độ không làm thay đổi điểm.",
+          "Mỗi đáp án đúng trong thời gian quy định nhận 1.000 điểm ở vòng thường hoặc hàng ngang ô chữ. Từ khóa dọc có tối đa 2.000 điểm và giảm theo số ký tự đã mở.",
           "Chế độ này phù hợp khi người dẫn muốn người chơi tập trung vào độ chính xác và có đủ thời gian đọc câu hỏi.",
         ],
       },
       {
         title: "Ai trả lời nhanh nhất",
         paragraphs: [
-          "Mọi người trả lời đúng đều nhận điểm. Vòng thường nằm trong khoảng 500–1.000 điểm; từ khóa dọc trong khoảng 1.000–2.000 điểm. Điểm giảm theo thời gian phản hồi và được làm tròn đến 10 điểm.",
+          "Mọi người trả lời đúng đều nhận điểm. Vòng thường nằm trong khoảng 500–1.000 điểm và giảm theo thời gian phản hồi. Từ khóa dọc có tối đa 2.000 điểm và giảm theo số ký tự đã mở; điểm được làm tròn đến 10.",
           "Thời gian tạm dừng không bị tính vào tốc độ. Khi bằng điểm, số câu đúng và tổng thời gian phản hồi được dùng để phân hạng trong chế độ này.",
         ],
       },
@@ -197,6 +197,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Điểm chung cần nhớ",
         bullets: [
           "Mỗi người chơi chỉ gửi một đáp án cho mỗi vòng áp dụng.",
+          "Mỗi người chỉ có một lượt giải hàng dọc trong toàn bộ ô chữ.",
           "Đáp án gửi sau deadline bị từ chối ở máy chủ.",
           "Người vào giữa game bắt đầu từ vòng đủ điều kiện tiếp theo.",
           "Điểm bằng nhau dùng competition rank, ví dụ 1, 1, 3.",
@@ -234,7 +235,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         title: "Ô chữ hàng ngang và từ khóa dọc",
         paragraphs: [
-          "Mỗi ô chữ có từ ba đến mười hàng ngang. Một ký tự được chọn từ mỗi đáp án hàng ngang để tạo thành từ khóa dọc; các hàng được mở lần lượt trước khi vòng từ khóa dọc bắt đầu.",
+          "Mỗi ô chữ có từ ba đến mười hàng ngang. Một ký tự từ mỗi đáp án tạo thành từ khóa dọc; người chơi có thể đoán từ khóa ngay trong các vòng hàng ngang trước khi các ký tự được mở hết.",
         ],
       },
       {
@@ -257,10 +258,10 @@ export const PUBLIC_PAGES: PublicPage[] = [
     kind: "question-type",
     title: "Ô chữ hàng ngang và một từ khóa dọc đặc biệt",
     description:
-      "Cách hoạt động của dạng ô chữ Đố Kinh Thánh gồm 3–10 hàng ngang, ký tự giao nhau và một vòng từ khóa dọc nhân đôi điểm.",
+      "Cách hoạt động của dạng ô chữ Đố Kinh Thánh gồm 3–10 hàng ngang, một lượt đoán sớm từ khóa dọc và điểm giảm theo số ký tự đã mở.",
     h1: "Cách hoạt động của ô chữ hàng ngang và từ khóa dọc",
     summary:
-      "Một câu hỏi ô chữ trong Đố Kinh Thánh Live tạo nhiều vòng hàng ngang, sau đó ghép một ký tự đã chọn ở mỗi hàng thành từ khóa dọc đặc biệt có hệ số điểm gấp đôi.",
+      "Một câu hỏi ô chữ tạo nhiều vòng hàng ngang và ghép một ký tự ở mỗi hàng thành từ khóa dọc. Người chơi có thể đoán hàng dọc một lần trong bất kỳ vòng hàng ngang nào.",
     audience: "Dành cho người soạn muốn tạo một chuỗi gợi ý liên kết thay vì các câu hỏi độc lập.",
     sections: [
       {
@@ -276,15 +277,16 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Trình tự chơi",
         steps: [
           "Người chơi trả lời hàng ngang đang mở.",
+          "Nếu đã biết từ khóa, người chơi bấm Giải hàng dọc, xem gợi ý và gửi một đáp án duy nhất.",
           "Người dẫn khóa vòng, mở đáp án và xem bảng xếp hạng.",
           "Ứng dụng chuyển sang hàng kế tiếp và giữ các hàng đã reveal trên bảng.",
-          "Sau hàng cuối, người chơi trả lời gợi ý từ khóa dọc.",
+          "Khi đáp án hàng ngang cuối được mở, ứng dụng hiển thị luôn đáp án hàng dọc; không có thêm một vòng câu hỏi hàng dọc.",
         ],
       },
       {
         title: "Chấm điểm và giới hạn",
         paragraphs: [
-          "Hàng ngang dùng điểm vòng thường. Từ khóa dọc dùng hệ số 2 ở cả hai chế độ chơi. Đáp án điền được chuẩn hóa và so khớp chính xác với đáp án hoặc alias do người soạn khai báo.",
+          "Hàng ngang dùng điểm vòng thường. Từ khóa dọc bắt đầu ở 2.000 điểm, giảm tuyến tính theo số ký tự đặc biệt đã mở và bằng 0 khi mở hết. Mỗi người chỉ được đoán hàng dọc một lần; đáp án của họ không làm lộ thêm ô cho người khác.",
           "Người soạn nên kiểm tra vị trí ký tự đặc biệt và xem thử cả bố cục điện thoại lẫn màn hình lớn trước khi mở phòng.",
         ],
       },
@@ -293,7 +295,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         question: "Có thể đoán từ khóa dọc trước khi mở hết hàng ngang không?",
         answer:
-          "Luồng hiện tại mở vòng từ khóa dọc sau khi các vòng hàng ngang đã hoàn tất; đây không phải cơ chế giành quyền đoán sớm.",
+          "Có. Trong một vòng hàng ngang, bấm Giải hàng dọc để xem gợi ý và gửi đáp án. Mỗi người chỉ có một lượt, còn điểm giảm dần khi nhiều ký tự được mở.",
       },
       {
         question: "Ứng dụng có tự tạo ô chữ từ câu Kinh Thánh không?",
@@ -827,14 +829,14 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         title: "Turn-based",
         paragraphs: [
-          "A correct answer earns 1,000 points on a normal or horizontal crossword round. The special vertical answer earns 2,000 points. Response speed does not change the score.",
+          "A correct answer earns 1,000 points on a normal or horizontal crossword round. The vertical answer starts at 2,000 points and decreases as selected letters are revealed.",
           "Choose this mode when careful reading and equal credit for correct answers matter most.",
         ],
       },
       {
         title: "Fastest-answer",
         paragraphs: [
-          "Every correct player earns points. Normal rounds range from 500 to 1,000 points, and the vertical crossword answer ranges from 1,000 to 2,000. Scores decrease with response time and are rounded to ten points.",
+          "Every correct player earns points. Normal rounds range from 500 to 1,000 points based on response time. The vertical answer starts at 2,000 points and decreases by revealed letters; scores are rounded to ten points.",
           "Paused time is excluded from response time. When scores tie, correct count and total response time participate in the speed-mode tie-break.",
         ],
       },
@@ -842,6 +844,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Rules shared by both modes",
         bullets: [
           "A player submits once per applicable round.",
+          "Each player has one vertical-answer attempt for the entire crossword.",
           "The server rejects answers received after the deadline.",
           "A late joiner starts with the next eligible round.",
           "Equal results use competition ranks such as 1, 1, 3.",
@@ -879,7 +882,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         title: "Horizontal and vertical crossword",
         paragraphs: [
-          "A crossword contains three to ten horizontal rows. One selected character from each horizontal answer forms a special vertical answer, which opens after the horizontal rounds are revealed.",
+          "A crossword contains three to ten horizontal rows. One selected character from each answer forms a special vertical answer that players can attempt during any horizontal round.",
         ],
       },
       {
@@ -902,10 +905,10 @@ export const PUBLIC_PAGES: PublicPage[] = [
     kind: "question-type",
     title: "Horizontal Crossword Rows and a Special Vertical Answer",
     description:
-      "How Bible Quiz Live crosswords use 3–10 horizontal rows, aligned selected characters, and a double-value special vertical round.",
+      "How Bible Quiz Live crosswords use 3–10 horizontal rows, one early vertical-answer attempt, and points that decrease as selected letters appear.",
     h1: "How the horizontal and special vertical crossword works",
     summary:
-      "A Bible Quiz Live crossword creates a sequence of horizontal rounds, then combines one chosen character from each answer into a special vertical answer worth twice the normal round value.",
+      "A Bible Quiz Live crossword combines one chosen character from each horizontal answer into a vertical answer that each player may attempt once before all letters are revealed.",
     audience:
       "For creators who want a connected clue sequence rather than separate standalone questions.",
     sections: [
@@ -922,15 +925,16 @@ export const PUBLIC_PAGES: PublicPage[] = [
         title: "Play sequence",
         steps: [
           "Players answer the open horizontal clue.",
+          "A player who knows the keyword can choose Solve vertical and submit their single attempt.",
           "The host locks and reveals the round, then shows the leaderboard.",
           "The next row opens while previous rows remain revealed on the board.",
-          "After the final row, players answer the special vertical clue.",
+          "When the final horizontal answer is revealed, the app also displays the vertical answer; there is no additional vertical-question round.",
         ],
       },
       {
         title: "Scoring and limits",
         paragraphs: [
-          "Horizontal rows use normal round scoring. The special vertical answer has a 2× multiplier in both game modes. Typed answers are normalized and compared exactly against creator-provided answers and aliases.",
+          "Horizontal rows use normal round scoring. The vertical answer starts at 2,000 points, decreases linearly as selected letters are revealed, and reaches zero when all are visible. Each player gets one attempt, and submitting it does not reveal cells to anyone else.",
           "Preview the selected character positions on both phone and large-screen layouts before opening a room.",
         ],
       },
@@ -939,7 +943,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
       {
         question: "Can players attempt the vertical answer before all rows are complete?",
         answer:
-          "The current flow opens the special vertical round after the horizontal rounds are complete; it is not an early-buzzer mechanism.",
+          "Yes. During a horizontal round, choose Solve vertical to view the clue and submit one attempt. Its value decreases as more selected letters are revealed.",
       },
       {
         question: "Does the app automatically generate a Bible crossword?",

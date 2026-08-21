@@ -37,6 +37,18 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
         .strict(),
     })
     .strict(),
+  z
+    .object({
+      type: z.literal("player.submit_crossword_vertical"),
+      payload: z
+        .object({
+          roundId: z.string().min(1).max(160),
+          submissionId: z.string().min(8).max(100),
+          value: z.string().trim().min(1).max(240),
+        })
+        .strict(),
+    })
+    .strict(),
 ]);
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
@@ -52,6 +64,7 @@ export type ServerEventType =
   | "round.resumed"
   | "answer.accepted"
   | "answer.rejected"
+  | "crossword.vertical_answer_accepted"
   | "round.answer_count"
   | "round.locked"
   | "round.revealed"

@@ -366,6 +366,17 @@ function HostGameStage({
           <p>{room.reveal.explanation}</p>
         </div>
       ) : null}
+      {room.crosswordVerticalReveal ? (
+        <div className="reveal-card crossword-final-answer">
+          <span>Đáp án hàng dọc</span>
+          <strong>{room.crosswordVerticalReveal.answer}</strong>
+          <small>{room.crosswordVerticalReveal.clue}</small>
+          {room.crosswordVerticalReveal.bibleReference ? (
+            <em>{room.crosswordVerticalReveal.bibleReference}</em>
+          ) : null}
+          <p>{room.crosswordVerticalReveal.explanation}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
