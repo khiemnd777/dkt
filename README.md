@@ -13,7 +13,9 @@ Một website tài liệu song ngữ và web game mobile-first: người dẫn t
 - Trình tạo game kiểu Google Forms + Kahoot, không có tài khoản hay thư viện lưu lâu dài; bản nháp tự khôi phục trong `sessionStorage` của tab và tự xóa sau khi tạo phòng.
 - Tải bản nháp media-free thành `.dkt.json`; game có ảnh/âm thanh dùng gói `.dkt.zip` kiểm tra hash. Cả hai định dạng đều loại mã phòng, capability, token, người chơi và điểm số.
 - Năm loại nội dung: chọn một, chọn nhiều đáp án (exact set), đúng/sai, trả lời ngắn chính xác và ô chữ Kinh Thánh hàng ngang/từ khóa dọc.
+- Ảnh/MP3 là nội dung câu hỏi tùy chọn cho cả năm loại (kể cả từng hàng ô chữ), độc lập với AI và YouVersion. Upload, xem/nghe, tạo phòng và xuất/nhập gói media không cần khóa OpenAI; chỉ cần bật media với R2 riêng tư và khóa ký URL.
 - Trợ lý tùy chọn dùng YouVersion làm nguồn Kinh Thánh và OpenAI để đề xuất câu hỏi; mọi đề xuất phải vượt kiểm tra server và được người tạo chấp thuận/chỉnh sửa. UI chỉ mount integration sau khi health capability xác nhận feature đang bật; khi tắt hoặc provider lỗi, builder thủ công và gameplay không gọi hay phụ thuộc vào AI.
+- Tra cứu YouVersion riêng ngay dưới mỗi ô “Câu Kinh Thánh tham khảo”, chỉ cần bật Scripture, không cần AI. Nhập địa chỉ (ví dụ `1 Sa-mu-ên 17:50` hoặc `Giăng 3:16–18`) để xem nội dung kèm bản dịch/ghi nguồn; nội dung tra cứu không được lưu vào bản nháp hay gửi tới OpenAI.
 - Hai chế độ: **Theo lượt câu hỏi** (mọi đáp án đúng nhận điểm bằng nhau) và **Đua tốc độ** (mọi người đúng đều có điểm; nhanh hơn được nhiều hơn).
 - Ba phiên tách biệt: người dẫn, người chơi và màn hình trình chiếu chỉ đọc.
 - Reconnect bằng token tạm trong `sessionStorage`; không dùng `localStorage` hoặc IndexedDB.
@@ -185,7 +187,7 @@ Workflow `Deploy production` tự chạy sau CI trên `main` khi environment `pr
 - PWA precache chỉ shell/versioned assets; `/api/*` luôn NetworkOnly và dynamic room data không cache.
 - PWA có favicon, icon PNG 192/512, maskable icon và Apple Touch icon sinh từ logo local.
 - YouVersion/OpenAI chỉ được gọi từ Worker; Responses dùng strict JSON Schema, `store:false`, không tools/web.
-- Media kiểm tra signature/kích thước/thời lượng, loại metadata, moderation/transcription, private R2 và URL HMAC theo phòng.
+- Media kiểm tra signature/kích thước/thời lượng, loại metadata, lưu R2 riêng tư và cấp URL HMAC theo phòng; upload không gọi OpenAI. Moderation/transcription chỉ chạy khi người tạo chủ động gửi media cho trợ lý AI tùy chọn.
 - Không log câu hỏi, nội dung Kinh Thánh, đáp án, media/transcript, tên người chơi, IP thô, capability hoặc secret.
 
 ## Giới hạn thực tế

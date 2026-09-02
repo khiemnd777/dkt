@@ -41,7 +41,7 @@ function mapBible(input: YouVersionBible): ScriptureVersion {
   const id = Number(input.id);
   const abbreviation = input.localized_abbreviation ?? input.abbreviation;
   const localizedTitle = input.localized_title ?? input.title ?? abbreviation;
-  const copyright = normalizeText(input.copyright);
+  const copyright = normalizeText(input.copyright || input.promotional_content || "");
   return {
     provider: "youversion",
     id,
@@ -190,6 +190,9 @@ export class YouVersionRestProvider implements ScriptureProvider {
         id: book.id,
         name: book.full_title ?? book.title,
         abbreviation: book.abbreviation,
+        aliases: [book.title, book.full_title, book.abbreviation].filter((value): value is string =>
+          Boolean(value),
+        ),
         chapters: book.chapters.map((chapter) => ({
           id: chapter.passage_id,
           number: Number(chapter.id),

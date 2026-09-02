@@ -116,8 +116,7 @@ export function QuestionMediaEditor({
               checked={attested}
               onChange={(event) => setAttested(event.target.checked)}
             />
-            Tôi có quyền sử dụng tệp này và đồng ý gửi tệp tới OpenAI để kiểm tra an toàn; âm thanh
-            sẽ được phiên âm để kiểm tra.
+            Tôi có quyền sử dụng tệp này trong game.
           </label>
           <button
             className="button primary"
@@ -125,7 +124,7 @@ export function QuestionMediaEditor({
             disabled={!file || !accessibilityText.trim() || !attested || busy}
             onClick={() => void upload()}
           >
-            <Upload /> {busy ? "Đang kiểm tra…" : "Tải lên và kiểm tra"}
+            <Upload /> {busy ? "Đang tải lên…" : "Tải lên"}
           </button>
         </div>
       )}

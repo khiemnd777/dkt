@@ -113,8 +113,8 @@ export const api = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${deleteCapability}` },
     }).then(parseResponse<void>),
-  scriptureVersions: (language = "vi") =>
-    fetch(`/api/scripture/versions?language=${encodeURIComponent(language)}`).then(
+  scriptureVersions: (language = "vi", signal?: AbortSignal) =>
+    fetch(`/api/scripture/versions?language=${encodeURIComponent(language)}`, { signal }).then(
       parseResponse<{ versions: ScriptureVersion[] }>,
     ),
   scriptureIndex: (versionId: number) =>
@@ -122,6 +122,11 @@ export const api = {
   scripturePassage: (versionId: number, passageId: string) =>
     fetch(
       `/api/scripture/passage?versionId=${versionId}&passageId=${encodeURIComponent(passageId)}`,
+    ).then(parseResponse<ScriptureContext>),
+  scriptureLookup: (versionId: number, reference: string, signal?: AbortSignal) =>
+    fetch(
+      `/api/scripture/lookup?versionId=${versionId}&reference=${encodeURIComponent(reference)}`,
+      { signal, cache: "no-store" },
     ).then(parseResponse<ScriptureContext>),
   questionSuggestions: (input: QuestionSuggestionsRequest) =>
     fetch("/api/question-suggestions", {

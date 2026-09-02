@@ -1,12 +1,14 @@
 import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../../worker/env";
 import worker from "../../worker/index";
+import { ScriptureService } from "../../worker/scripture/service";
 
 const runtimeEnv = env as unknown as Env;
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await reset();
 });
 
@@ -88,6 +90,13 @@ describe("disabled-by-default integration routes", () => {
     expect(scripture.status).toBe(503);
     expect(await scripture.json()).toMatchObject({ error: { code: "SCRIPTURE_DISABLED" } });
 
+    const lookup = await worker.fetch(
+      new Request("https://game.test/api/scripture/lookup?versionId=1638&reference=JHN.3.16"),
+      disabledEnv,
+    );
+    expect(lookup.status).toBe(503);
+    expect(await lookup.json()).toMatchObject({ error: { code: "SCRIPTURE_DISABLED" } });
+
     const generation = await worker.fetch(
       new Request("https://game.test/api/question-suggestions", {
         method: "POST",
@@ -100,5 +109,53 @@ describe("disabled-by-default integration routes", () => {
     expect(await generation.json()).toMatchObject({
       error: { code: "QUESTION_GENERATION_UNAVAILABLE" },
     });
+  });
+});
+
+describe("standalone Scripture lookup route", () => {
+  it("works without login or OpenAI configuration when only Scripture is enabled", async () => {
+    const lookup = vi.spyOn(ScriptureService.prototype, "lookupReference").mockResolvedValue({
+      version: {
+        provider: "youversion",
+        id: 1638,
+        abbreviation: "TEST",
+        localizedTitle: "Test",
+        languageTag: "vi",
+        copyright: "Test copyright",
+        attribution: "Test copyright",
+      },
+      requestedScope: {
+        provider: "youversion",
+        bibleVersionId: 1638,
+        bookUsfm: "JHN",
+        chapter: 3,
+        passageId: "JHN.3.16",
+      },
+      chunks: [],
+    });
+    const scriptureOnly = Object.assign(Object.create(runtimeEnv) as Env, {
+      SCRIPTURE_PROVIDER_ENABLED: "true",
+      YVP_APP_KEY: "test-key-not-a-secret",
+      YVP_ALLOWED_BIBLE_IDS: "1638",
+      OPENAI_API_KEY: undefined,
+      AI_QUESTION_SUGGESTIONS_ENABLED: "false",
+      AI_MEDIA_ANALYSIS_ENABLED: "false",
+    });
+    const response = await worker.fetch(
+      new Request(
+        "https://game.test/api/scripture/lookup?versionId=1638&reference=Gi%C4%83ng%203%3A16",
+      ),
+      scriptureOnly,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(lookup).toHaveBeenCalledWith(1638, "Giăng 3:16");
+    expect(JSON.stringify(await response.json())).not.toContain("test-key-not-a-secret");
+    const post = await worker.fetch(
+      new Request("https://game.test/api/scripture/lookup", { method: "POST" }),
+      scriptureOnly,
+    );
+    expect(post.status).toBe(405);
+    expect(lookup).toHaveBeenCalledTimes(1);
   });
 });

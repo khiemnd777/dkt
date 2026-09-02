@@ -52,7 +52,7 @@ Assumptions: one host and one screen per room; one accepted answer per player/ro
 
 These are estimates, not exact billing calculations. Scenario B approaches the daily row-write allowance once reconnects, retries, joins, cleanup deletes, and sequence leases are included; it has materially less safety margin than the recommended operating profile. Compute duration also depends on actual handler execution time and cannot be inferred from message counts alone.
 
-AI/media load must be budgeted separately. For example, 1,000 generations/day consume about 2,000 GenerationGate requests plus provider retries, while 1,000 media uploads/month with ten R2 reads each remain around 1,000 Class A and 10,000 Class B operations before retries/range requests. These figures are illustrative, not a promise of zero cost; OpenAI usage and any Cloudflare overage/plan change remain external costs.
+AI and media load must be budgeted independently. Ordinary media upload/playback does not call OpenAI or incur OpenAI charges. For example, 1,000 generations/day consume about 2,000 GenerationGate requests plus provider retries, while 1,000 media uploads/month with ten R2 reads each remain around 1,000 Class A and 10,000 Class B operations before retries/range requests. These figures are illustrative, not a promise of zero cost; opt-in OpenAI usage and any Cloudflare overage/plan change remain external costs.
 
 ## Recommended operating profile
 

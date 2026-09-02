@@ -93,6 +93,8 @@ describe("YouVersion REST provider", () => {
     expect(requests[0].headers.get("x-yvp-app-key")).toBe("test-secret");
     expect(requests[0].url).toContain("/v1/bibles/449");
 
+    expect((await provider.getIndex(449)).books[0].aliases).toContain("Giăng");
+
     const context = await service.getContext(449, "JHN.3.16-18");
     expect(context.version.attribution).toContain("NVB");
     expect(context.chunks[0]).toMatchObject({
@@ -110,6 +112,16 @@ describe("YouVersion REST provider", () => {
     });
 
     await expect(provider.listVersions({ languageRanges: ["vi"] })).resolves.toEqual([]);
+  });
+
+  it("accepts the nullable publisher URL returned by licensed VCB metadata", async () => {
+    const provider = new YouVersionRestProvider({
+      appKey: "test-secret",
+      fetcher: async () => Response.json({ ...version, publisher_url: null }),
+    });
+    const result = await provider.getVersion(449);
+    expect(result.id).toBe(449);
+    expect(result.publisherUrl).toBeUndefined();
   });
 
   it("honors Retry-After and maps provider throttling to a stable error", async () => {

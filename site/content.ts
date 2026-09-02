@@ -621,14 +621,22 @@ export const PUBLIC_PAGES: PublicPage[] = [
           "Định nghĩa game gồm tiêu đề, câu hỏi, lựa chọn và đáp án do người tạo gửi lên.",
           "Tên hiển thị, biểu tượng, token đã băm, trạng thái kết nối, đáp án đã chấm và điểm của người chơi.",
           "Tiến trình vòng, deadline, bảng xếp hạng và vé WebSocket dùng một lần.",
-          "Ứng dụng hiện không hỗ trợ tải ảnh lên máy chủ và không lưu email hoặc số điện thoại.",
+          "Ảnh hoặc MP3 câu hỏi do người tạo chủ động tải lên; ứng dụng không lưu email hoặc số điện thoại.",
         ],
       },
       {
         title: "Nơi dữ liệu tạm thời được lưu",
         paragraphs: [
-          "Máy chủ dùng một SQLite-backed Durable Object cho mỗi mã phòng. Repository hiện không có binding Cloudflare D1 hoặc R2, vì vậy không có bản ghi D1 hay object ảnh R2 cần xóa. Raw text của câu trả lời ngắn chỉ tồn tại đủ để chuẩn hóa và chấm, không được ghi vào storage.",
-          "Trình duyệt dùng sessionStorage cho bản nháp, token phiên và tùy chọn feedback. Không dùng localStorage hoặc IndexedDB cho dữ liệu phòng. File .dkt.json do người dùng tải xuống nằm ngoài quyền xóa của ứng dụng.",
+          "Máy chủ dùng một SQLite-backed Durable Object cho mỗi mã phòng; không có Cloudflare D1. Ảnh/MP3 được lưu riêng trong Cloudflare R2 riêng tư, truy cập qua liên kết có thời hạn. Raw text của câu trả lời ngắn chỉ tồn tại đủ để chuẩn hóa và chấm, không được ghi vào storage.",
+          "Trình duyệt dùng sessionStorage cho bản nháp, token phiên và tùy chọn feedback. Không dùng localStorage hoặc IndexedDB cho dữ liệu phòng. File .dkt.json hoặc gói .dkt.zip kèm media do người dùng tải xuống nằm ngoài quyền xóa của ứng dụng. Nhập gói media sẽ tải lại tệp lên kho tạm.",
+        ],
+      },
+      {
+        title: "Ảnh, âm thanh và tra cứu Kinh Thánh",
+        paragraphs: [
+          "Quyền truy cập tệp media hết hạn sau tối đa 24 giờ. R2 áp dụng quy tắc xóa tệp dưới temp/ sau một ngày; việc dọn ở cấp nền tảng có thể diễn ra muộn hơn thời điểm hết hạn truy cập. Media không bị xóa ngay khi phòng kết thúc.",
+          "Upload và chơi game không gửi media tới OpenAI. AI hiện tắt trên production và không phải điều kiện để dùng ảnh/âm thanh. Nếu chức năng trợ lý AI được bật sau này, chỉ yêu cầu tạo câu hỏi chủ động với tệp đã chọn mới gửi media để phân tích hoặc phiên âm.",
+          "Tra cứu YouVersion gửi địa chỉ Kinh Thánh và bản dịch đã chọn tới dịch vụ qua máy chủ ứng dụng. Nội dung trả về chỉ dùng để hiển thị có ghi nguồn, không được tự đưa vào bản nháp, game, file xuất hoặc AI.",
         ],
       },
       {
@@ -1264,14 +1272,22 @@ export const PUBLIC_PAGES: PublicPage[] = [
           "The game definition: title, questions, options, and creator-provided answers.",
           "Display names, icons, hashed tokens, connection state, evaluated submissions, and scores.",
           "Round progress, deadlines, leaderboard entries, and one-time WebSocket tickets.",
-          "The current app does not support server image uploads and does not collect email addresses or phone numbers.",
+          "Question images or MP3 files deliberately uploaded by the host; the app does not collect email addresses or phone numbers.",
         ],
       },
       {
         title: "Where temporary data is stored",
         paragraphs: [
-          "The server uses one SQLite-backed Durable Object per room code. The repository has no Cloudflare D1 or R2 binding, so there are no D1 records or R2 image objects to delete. Raw typed-answer text exists only long enough to normalize and evaluate it and is not written to storage.",
-          "The browser uses sessionStorage for the builder draft, role tokens, and feedback preference. It does not use localStorage or IndexedDB for room data. A downloaded .dkt.json file is user-managed and cannot be deleted by the app.",
+          "The server uses one SQLite-backed Durable Object per room code and no Cloudflare D1. Question images and MP3 files are stored separately in private Cloudflare R2 and accessed through expiring links. Raw typed-answer text exists only long enough to normalize and evaluate it and is not written to storage.",
+          "The browser uses sessionStorage for the builder draft, role tokens, and feedback preference. It does not use localStorage or IndexedDB for room data. Downloaded .dkt.json files or .dkt.zip packages with media are user-managed and cannot be deleted by the app. Importing a media package reuploads its files to temporary storage.",
+        ],
+      },
+      {
+        title: "Images, audio, and Bible lookup",
+        paragraphs: [
+          "Media access expires within 24 hours. An R2 lifecycle rule deletes files under temp/ after one day; platform cleanup may occur later than access expiry. Media files are not deleted immediately when a room ends.",
+          "Uploading media and playing games do not send files to OpenAI. AI is currently disabled in production and is not required for images or audio. If the optional AI assistant is enabled later, only an explicit generation request with selected media sends that file for analysis or transcription.",
+          "YouVersion lookup sends the Bible reference and selected version through the app server to the provider. Returned text is displayed with attribution and is not automatically inserted into drafts, games, exports, or AI prompts.",
         ],
       },
       {

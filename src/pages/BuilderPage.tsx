@@ -423,10 +423,12 @@ export function BuilderPage() {
             Câu {items.indexOf(selected) + 1} / {items.length}
           </div>
           <ItemEditor
+            key={selected.id}
             item={selected}
             update={updateSelected}
             mediaHandles={mediaHandles}
             mediaEnabled={runtimeFeatures.questionMedia}
+            scriptureEnabled={runtimeFeatures.scripture}
             onMediaHandle={(handle) =>
               setMediaHandles((current) => ({ ...current, [handle.media.assetId]: handle }))
             }

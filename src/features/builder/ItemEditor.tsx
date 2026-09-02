@@ -4,6 +4,7 @@ import { answerCells } from "@shared/text";
 import { Check, CirclePlus, Trash2 } from "lucide-react";
 import { newId } from "./factories";
 import { QuestionMediaEditor } from "./QuestionMediaEditor";
+import { ScriptureReferenceField } from "./ScriptureReferenceField";
 
 interface ItemEditorProps {
   item: GameItem;
@@ -11,6 +12,7 @@ interface ItemEditorProps {
   mediaHandles: Record<string, BuilderMediaHandle>;
   onMediaHandle: (handle: BuilderMediaHandle) => void;
   mediaEnabled: boolean;
+  scriptureEnabled: boolean;
 }
 
 export function ItemEditor({
@@ -19,6 +21,7 @@ export function ItemEditor({
   mediaHandles,
   onMediaHandle,
   mediaEnabled,
+  scriptureEnabled,
 }: ItemEditorProps) {
   const mediaEditor = (
     media: QuestionMediaRef | undefined,
@@ -50,17 +53,11 @@ export function ItemEditor({
             }
           />
         </label>
-        <label>
-          Câu Kinh Thánh tham khảo <span>(không bắt buộc)</span>
-          <input
-            value={item.bibleReference ?? ""}
-            maxLength={120}
-            onChange={(event) =>
-              update({ ...item, bibleReference: event.target.value || undefined } as GameItem)
-            }
-            placeholder="1 Sa-mu-ên 17:50"
-          />
-        </label>
+        <ScriptureReferenceField
+          value={item.bibleReference ?? ""}
+          enabled={scriptureEnabled}
+          onChange={(value) => update({ ...item, bibleReference: value || undefined } as GameItem)}
+        />
       </div>
       {mediaEditor(item.presentation?.media, (media) =>
         update({ ...item, presentation: media ? { media } : undefined } as GameItem),
@@ -313,7 +310,14 @@ export function ItemEditor({
       </div>
     );
   }
-  return <CrosswordEditor item={item} update={(next) => update(next)} mediaEditor={mediaEditor} />;
+  return (
+    <CrosswordEditor
+      item={item}
+      update={(next) => update(next)}
+      mediaEditor={mediaEditor}
+      scriptureEnabled={scriptureEnabled}
+    />
+  );
 }
 
 function Explanation({ item, update }: { item: GameItem; update: (next: GameItem) => void }) {
@@ -335,9 +339,11 @@ function CrosswordEditor({
   item,
   update,
   mediaEditor,
+  scriptureEnabled,
 }: {
   item: CrosswordItem;
   update: (next: CrosswordItem) => void;
+  scriptureEnabled: boolean;
   mediaEditor: (
     media: QuestionMediaRef | undefined,
     onChange: (next?: QuestionMediaRef) => void,
@@ -409,16 +415,13 @@ function CrosswordEditor({
             }
           />
         </label>
-        <label>
-          Câu Kinh Thánh cho từ khóa dọc
-          <input
-            value={item.bibleReference ?? ""}
-            maxLength={120}
-            onChange={(event) =>
-              update({ ...item, bibleReference: event.target.value || undefined })
-            }
-          />
-        </label>
+        <ScriptureReferenceField
+          label="Câu Kinh Thánh cho từ khóa dọc"
+          optional={false}
+          value={item.bibleReference ?? ""}
+          enabled={scriptureEnabled}
+          onChange={(value) => update({ ...item, bibleReference: value || undefined })}
+        />
       </div>
       {mediaEditor(item.presentation?.media, (media) =>
         update({ ...item, presentation: media ? { media } : undefined }),
@@ -490,18 +493,12 @@ function CrosswordEditor({
                   }
                 />
               </label>
-              <label>
-                Câu Kinh Thánh tham khảo
-                <input
-                  value={row.bibleReference ?? ""}
-                  maxLength={120}
-                  onChange={(event) =>
-                    changeRow(row.id, {
-                      bibleReference: event.target.value || undefined,
-                    })
-                  }
-                />
-              </label>
+              <ScriptureReferenceField
+                optional={false}
+                value={row.bibleReference ?? ""}
+                enabled={scriptureEnabled}
+                onChange={(value) => changeRow(row.id, { bibleReference: value || undefined })}
+              />
               <label>
                 Lời giải thích
                 <textarea

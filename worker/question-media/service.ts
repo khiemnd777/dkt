@@ -2,7 +2,6 @@ import { AppError } from "../../shared/errors";
 import type { BuilderMediaHandle, GameDefinition, QuestionMediaRef } from "../../shared/game";
 import { LIMITS } from "../../shared/limits";
 import { questionMediaRefSchema } from "../../shared/schemas";
-import type { MediaSafetyProvider } from "../integrations/openai/media-safety-provider";
 import { createMediaCapability, verifyMediaCapability } from "./capabilities";
 import { validateImage, validateMp3 } from "./media-validation";
 
@@ -22,7 +21,7 @@ interface AssetMetadata {
   attribution?: string;
   createdAt: number;
   expiresAt: number;
-  moderationStatus: "PASSED";
+  validationStatus: "PASSED";
 }
 
 export interface MediaUploadInput {
@@ -65,7 +64,8 @@ function decodeMetadata(input: Record<string, string> | undefined): AssetMetadat
     rightsSource: input.rightsSource as AssetMetadata["rightsSource"],
     createdAt: Number(input.createdAt),
     expiresAt: Number(input.expiresAt),
-    moderationStatus: input.moderationStatus as "PASSED",
+    // Older, already validated assets remain readable until their existing expiry.
+    validationStatus: (input.validationStatus ?? input.moderationStatus) as "PASSED",
     ...(input.width ? { width: Number(input.width) } : {}),
     ...(input.height ? { height: Number(input.height) } : {}),
     ...(input.durationMs ? { durationMs: Number(input.durationMs) } : {}),
@@ -76,7 +76,7 @@ function decodeMetadata(input: Record<string, string> | undefined): AssetMetadat
     !/^[a-f0-9]{64}$/u.test(metadata.sha256) ||
     !Number.isFinite(metadata.byteSize) ||
     !Number.isFinite(metadata.expiresAt) ||
-    metadata.moderationStatus !== "PASSED"
+    metadata.validationStatus !== "PASSED"
   ) {
     throw new AppError("QUESTION_MEDIA_EXPIRED", 404);
   }
@@ -121,8 +121,6 @@ export class QuestionMediaService {
   constructor(
     private readonly bucket: R2Bucket,
     private readonly signingKey: string,
-    private readonly safety: MediaSafetyProvider,
-    private readonly transcriptionModel = "gpt-transcribe",
   ) {
     if (!signingKey) throw new AppError("QUESTION_MEDIA_INVALID", 503);
   }
@@ -141,19 +139,6 @@ export class QuestionMediaService {
           ? validateMp3(original)
           : undefined;
     if (!validated) throw new AppError("QUESTION_MEDIA_INVALID", 400);
-    if (input.kind === "IMAGE" && "width" in validated) {
-      await this.safety.moderateImage({
-        bytes: validated.bytes,
-        mimeType: validated.mimeType,
-        accessibilityText,
-      });
-    } else {
-      const transcript = await this.safety.transcribeAudio({
-        bytes: validated.bytes,
-        model: this.transcriptionModel,
-      });
-      await this.safety.moderateText(`${accessibilityText}\n${transcript}`);
-    }
     const assetId = crypto.randomUUID().replace(/-/gu, "");
     const now = Date.now();
     const metadata: AssetMetadata = {
@@ -172,7 +157,7 @@ export class QuestionMediaService {
       ...(input.attribution?.trim() ? { attribution: input.attribution.trim().slice(0, 500) } : {}),
       createdAt: now,
       expiresAt: now + RETENTION_MS,
-      moderationStatus: "PASSED",
+      validationStatus: "PASSED",
     };
     await this.bucket.put(objectKey(assetId), validated.bytes, {
       httpMetadata: { contentType: metadata.mimeType },
@@ -248,35 +233,20 @@ export class QuestionMediaService {
     await this.bucket.delete(objectKey(assetId));
   }
 
-  async generationInput(
+  async readAsset(
     assetId: string,
     token: string | undefined,
   ): Promise<{
     media: QuestionMediaRef;
-    image?: { mimeType: "image/jpeg" | "image/png" | "image/webp"; bytes: ArrayBuffer };
-    audioTranscript?: string;
+    bytes: ArrayBuffer;
   }> {
     await verifyMediaCapability(token, this.signingKey, "read", assetId);
     const metadata = await this.metadata(assetId);
     const object = await this.bucket.get(objectKey(assetId));
     if (!object) throw new AppError("QUESTION_MEDIA_EXPIRED", 404);
-    const bytes = new Uint8Array(await object.arrayBuffer());
-    const media = toMedia(metadata);
-    if (media.kind === "IMAGE") {
-      return {
-        media,
-        image: {
-          mimeType: media.mimeType as "image/jpeg" | "image/png" | "image/webp",
-          bytes: Uint8Array.from(bytes).buffer,
-        },
-      };
-    }
     return {
-      media,
-      audioTranscript: await this.safety.transcribeAudio({
-        bytes,
-        model: this.transcriptionModel,
-      }),
+      media: toMedia(metadata),
+      bytes: await object.arrayBuffer(),
     };
   }
 

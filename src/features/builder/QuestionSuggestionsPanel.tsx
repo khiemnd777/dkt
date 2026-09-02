@@ -293,7 +293,7 @@ export function QuestionSuggestionsPanel({
             </label>
             {mediaAnalysisEnabled ? (
               <label>
-                Media hỗ trợ <span>(không bắt buộc)</span>
+                Media cho trợ lý AI <span>(không bắt buộc)</span>
                 <select
                   value={mediaAssetId}
                   onChange={(event) => setMediaAssetId(event.target.value)}
@@ -306,6 +306,12 @@ export function QuestionSuggestionsPanel({
                     </option>
                   ))}
                 </select>
+                {mediaAssetId ? (
+                  <small>
+                    Khi yêu cầu tạo câu hỏi, tệp đã chọn sẽ được gửi tới OpenAI để phân tích; âm
+                    thanh sẽ được phiên âm. Upload và chơi game thông thường không gửi tệp tới AI.
+                  </small>
+                ) : null}
               </label>
             ) : null}
           </div>

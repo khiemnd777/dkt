@@ -12,7 +12,7 @@ export const youVersionBibleSchema = z
     language_tag: z.string().min(2),
     copyright: z.string().default(""),
     promotional_content: z.string().optional(),
-    publisher_url: z.string().url().optional(),
+    publisher_url: z.string().url().nullish(),
     organization_id: identifierSchema.optional(),
     youversion_deep_link: z.string().url().optional(),
   })

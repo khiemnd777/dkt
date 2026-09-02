@@ -6,7 +6,9 @@ TURNSTILE_SECRET_KEY=
 # Optional. Keep this value secret; the Worker serves only the matching verification path.
 INDEXNOW_KEY=
 
-# YouVersion and AI features stay disabled until the selected Bible license is approved.
+# Independent optional features. Scripture requires the selected Bible's display license;
+# AI requires additional AI-processing rights and its own release checks.
+# Ordinary image/audio upload requires only R2 + QUESTION_MEDIA_SIGNING_KEY, never OpenAI.
 SCRIPTURE_PROVIDER_ENABLED=false
 AI_QUESTION_SUGGESTIONS_ENABLED=false
 AI_AUTO_BALANCE_ENABLED=false

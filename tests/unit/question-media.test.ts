@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameDefinition } from "../../shared/game";
 import type { MediaSafetyProvider } from "../../worker/integrations/openai/media-safety-provider";
 import { OpenAiMediaSafetyProvider } from "../../worker/integrations/openai/media-safety-provider";
+import { prepareMediaInput } from "../../worker/question-intelligence/media-input";
 import { validateMp3 } from "../../worker/question-media/media-validation";
 import { QuestionMediaService } from "../../worker/question-media/service";
 
@@ -17,6 +18,12 @@ function pngFixture(width = 16, height = 12): Uint8Array {
   bytes[25] = 2;
   view.setUint32(33, 0);
   bytes.set([73, 69, 78, 68], 37);
+  return bytes;
+}
+
+function mp3Fixture(): Uint8Array {
+  const bytes = new Uint8Array(417 * 2);
+  for (const offset of [0, 417]) bytes.set([0xff, 0xfb, 0x90, 0x00], offset);
   return bytes;
 }
 
@@ -74,6 +81,7 @@ class FakeBucket {
       size: object.bytes.length,
       customMetadata: object.customMetadata,
       body: new Response(Uint8Array.from(bytes).buffer).body,
+      arrayBuffer: async () => Uint8Array.from(bytes).buffer,
     } as unknown as R2ObjectBody;
   }
 
@@ -82,19 +90,24 @@ class FakeBucket {
   }
 }
 
-const safety: MediaSafetyProvider = {
-  moderateText: async () => undefined,
-  moderateImage: async () => undefined,
-  transcribeAudio: async () => "Nội dung âm thanh an toàn.",
-};
-
 describe("private question media", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Media must not call any provider")),
+    );
+  });
+  afterEach(() => {
+    expect(fetch).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it("validates, stores and serves a signed image with room-scoped delivery", async () => {
     const bucket = new FakeBucket();
     const service = new QuestionMediaService(
       bucket as unknown as R2Bucket,
       "test-media-signing-key-at-least-32-characters",
-      safety,
     );
     const handle = await service.upload({
       file: new File([Uint8Array.from(pngFixture()).buffer], "question.png", {
@@ -142,6 +155,15 @@ describe("private question media", () => {
     expect(response.headers.get("content-type")).toBe("image/png");
     expect(response.headers.get("content-range")).toContain("bytes 0-7/");
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(pngFixture().slice(0, 8));
+    await expect(service.read(handle.media.assetId, token, "room:OTHER2")).rejects.toMatchObject({
+      code: "QUESTION_MEDIA_EXPIRED",
+    });
+    expect(bucket.objects.get(`temp/${handle.media.assetId}`)?.customMetadata).toMatchObject({
+      validationStatus: "PASSED",
+    });
+    expect(bucket.objects.get(`temp/${handle.media.assetId}`)?.customMetadata).not.toHaveProperty(
+      "moderationStatus",
+    );
   });
 
   it("requires rights attestation and rejects forged capabilities", async () => {
@@ -149,7 +171,6 @@ describe("private question media", () => {
     const service = new QuestionMediaService(
       bucket as unknown as R2Bucket,
       "test-media-signing-key-at-least-32-characters",
-      safety,
     );
     await expect(
       service.upload({
@@ -174,10 +195,91 @@ describe("private question media", () => {
     await expect(
       service.read(handle.media.assetId, `${handle.readCapability}x`, "read"),
     ).rejects.toMatchObject({ code: "QUESTION_MEDIA_EXPIRED", status: 404 });
+    await expect(service.delete(handle.media.assetId, handle.readCapability)).rejects.toMatchObject(
+      {
+        code: "QUESTION_MEDIA_EXPIRED",
+      },
+    );
+    await service.delete(handle.media.assetId, handle.deleteCapability);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("uploads and reads MP3 without transcription, and rejects expired assets", async () => {
+    const service = new QuestionMediaService(
+      new FakeBucket() as unknown as R2Bucket,
+      "test-media-signing-key-at-least-32-characters",
+    );
+    const handle = await service.upload({
+      file: new File([Uint8Array.from(mp3Fixture()).buffer], "question.mp3", {
+        type: "audio/mpeg",
+      }),
+      kind: "AUDIO",
+      accessibilityText: "Một đoạn nhạc cho câu hỏi",
+      rightsSource: "USER_UPLOAD",
+      attestedByHost: true,
+    });
+    expect(handle.media.kind).toBe("AUDIO");
+    expect(handle.media.durationMs).toBeGreaterThan(40);
+    const asset = await service.readAsset(handle.media.assetId, handle.readCapability);
+    expect(new Uint8Array(asset.bytes)).toEqual(mp3Fixture());
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse(handle.expiresAt) + 1);
+    await expect(
+      service.readAsset(handle.media.assetId, handle.readCapability),
+    ).rejects.toMatchObject({
+      code: "QUESTION_MEDIA_EXPIRED",
+    });
+  });
+
+  it("still rejects invalid file signatures and excessive image dimensions before storage", async () => {
+    const bucket = new FakeBucket();
+    const service = new QuestionMediaService(
+      bucket as unknown as R2Bucket,
+      "test-media-signing-key-at-least-32-characters",
+    );
+    for (const bytes of [new Uint8Array([1, 2, 3]), pngFixture(4097, 12)]) {
+      await expect(
+        service.upload({
+          file: new File([Uint8Array.from(bytes).buffer], "invalid.png", { type: "image/png" }),
+          kind: "IMAGE",
+          accessibilityText: "Ảnh không hợp lệ",
+          rightsSource: "USER_UPLOAD",
+          attestedByHost: true,
+        }),
+      ).rejects.toMatchObject({ code: "QUESTION_MEDIA_INVALID" });
+    }
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("reads previously accepted assets without reprocessing them and rejects unvalidated metadata", async () => {
+    const bucket = new FakeBucket();
+    const service = new QuestionMediaService(
+      bucket as unknown as R2Bucket,
+      "test-media-signing-key-at-least-32-characters",
+    );
+    const handle = await service.upload({
+      file: new File([Uint8Array.from(pngFixture()).buffer], "question.png", { type: "image/png" }),
+      kind: "IMAGE",
+      accessibilityText: "Ảnh đã được tải lên",
+      rightsSource: "USER_UPLOAD",
+      attestedByHost: true,
+    });
+    const metadata = bucket.objects.get(`temp/${handle.media.assetId}`)?.customMetadata;
+    if (!metadata) throw new Error("Missing asset metadata");
+    delete metadata.validationStatus;
+    metadata.moderationStatus = "PASSED";
+    expect((await service.read(handle.media.assetId, handle.readCapability, "read")).status).toBe(
+      200,
+    );
+    metadata.moderationStatus = "FAILED";
+    await expect(
+      service.readAsset(handle.media.assetId, handle.readCapability),
+    ).rejects.toMatchObject({
+      code: "QUESTION_MEDIA_EXPIRED",
+    });
   });
 });
 
-describe("audio validation and OpenAI media safety", () => {
+describe("audio validation and opt-in AI media analysis", () => {
   it("measures MP3 frames instead of trusting client duration", () => {
     const frameLength = 417;
     const bytes = new Uint8Array(frameLength * 2);
@@ -187,6 +289,70 @@ describe("audio validation and OpenAI media safety", () => {
     expect(result.durationMs).toBeGreaterThan(40);
     expect(() => validateMp3(new Uint8Array([0xff, 0xfb, 0x90, 0x00]))).toThrow();
   });
+
+  it.each(["IMAGE", "AUDIO"] as const)(
+    "prepares %s only through the explicit AI helper",
+    async (kind) => {
+      const service = new QuestionMediaService(
+        new FakeBucket() as unknown as R2Bucket,
+        "test-media-signing-key-at-least-32-characters",
+      );
+      const handle = await service.upload({
+        file: new File(
+          [Uint8Array.from(kind === "IMAGE" ? pngFixture() : mp3Fixture()).buffer],
+          "question",
+          {
+            type: kind === "IMAGE" ? "image/png" : "audio/mpeg",
+          },
+        ),
+        kind,
+        accessibilityText: "Nội dung câu hỏi",
+        rightsSource: "USER_UPLOAD",
+        attestedByHost: true,
+      });
+      const safety: MediaSafetyProvider = {
+        moderateImage: vi.fn().mockResolvedValue(undefined),
+        moderateText: vi.fn().mockResolvedValue(undefined),
+        transcribeAudio: vi.fn().mockResolvedValue("Bản phiên âm kiểm thử"),
+      };
+      await expect(
+        prepareMediaInput(service, safety, handle.media.assetId, "forged", "test-transcriber"),
+      ).rejects.toMatchObject({ code: "QUESTION_MEDIA_EXPIRED" });
+      expect(safety.moderateImage).not.toHaveBeenCalled();
+      expect(safety.transcribeAudio).not.toHaveBeenCalled();
+      const input = await prepareMediaInput(
+        service,
+        safety,
+        handle.media.assetId,
+        handle.readCapability,
+        "test-transcriber",
+      );
+      expect(input.media).toEqual(handle.media);
+      if (kind === "IMAGE") {
+        expect(input.image?.mimeType).toBe("image/png");
+        expect(safety.moderateImage).toHaveBeenCalledTimes(1);
+        expect(safety.transcribeAudio).not.toHaveBeenCalled();
+        vi.mocked(safety.moderateImage).mockRejectedValueOnce(new Error("AI input rejected"));
+      } else {
+        expect(input.audioTranscript).toBe("Bản phiên âm kiểm thử");
+        expect(safety.transcribeAudio).toHaveBeenCalledWith(
+          expect.objectContaining({ model: "test-transcriber" }),
+        );
+        expect(safety.moderateText).toHaveBeenCalledWith("Nội dung câu hỏi\nBản phiên âm kiểm thử");
+        expect(safety.moderateImage).not.toHaveBeenCalled();
+        vi.mocked(safety.moderateText).mockRejectedValueOnce(new Error("AI input rejected"));
+      }
+      await expect(
+        prepareMediaInput(
+          service,
+          safety,
+          handle.media.assetId,
+          handle.readCapability,
+          "test-transcriber",
+        ),
+      ).rejects.toThrow("AI input rejected");
+    },
+  );
 
   it("uses multimodal moderation and a separate transcription endpoint", async () => {
     const requests: Array<{ url: string; body?: BodyInit | null }> = [];

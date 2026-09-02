@@ -38,6 +38,7 @@ export interface ScriptureIndexBook {
   id: string;
   name: string;
   abbreviation: string;
+  aliases?: string[];
   chapters: ScriptureIndexChapter[];
 }
 

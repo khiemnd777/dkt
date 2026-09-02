@@ -67,6 +67,22 @@ test("UAT — restores an ephemeral builder draft and serves installable PWA ass
   page,
   request,
 }) => {
+  await page.route("**/api/health", (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        turnstileProtected: false,
+        environment: "development",
+        features: {
+          scripture: false,
+          questionSuggestions: false,
+          autoBalance: false,
+          questionMedia: false,
+          aiMediaAnalysis: false,
+        },
+      },
+    }),
+  );
   await page.goto("/create");
   await expect(page.getByText("Trợ lý tạo câu hỏi từ YouVersion", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Hình ảnh hoặc âm thanh câu hỏi", { exact: true })).toHaveCount(0);

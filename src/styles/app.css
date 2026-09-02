@@ -952,6 +952,60 @@ textarea:focus {
   background: color-mix(in srgb, var(--paper) 92%, var(--navy) 8%);
 }
 
+.scripture-reference-field {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.form-grid > .scripture-reference-field {
+  display: contents;
+}
+.scripture-lookup {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--paper);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.scripture-lookup-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--navy);
+}
+.scripture-lookup-heading svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+.scripture-lookup p {
+  margin: 0.5rem 0;
+}
+.scripture-lookup blockquote {
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+  border-left: 3px solid var(--line);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.scripture-lookup small,
+.scripture-attribution {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.scripture-lookup select {
+  width: 100%;
+  min-width: 0;
+}
+.scripture-lookup-error button {
+  min-height: 44px;
+}
+
 .media-upload-form {
   display: grid;
   gap: 0.75rem;

@@ -1,4 +1,5 @@
-export {};
+import { YouVersionRestProvider } from "../worker/integrations/youversion/rest-provider";
+import { ScriptureService } from "../worker/scripture/service";
 
 const appKey = process.env.YVP_APP_KEY;
 const rawAllowed = process.env.YVP_ALLOWED_BIBLE_IDS ?? "";
@@ -15,34 +16,38 @@ if (!appKey) {
     console.error("YVP_ALLOWED_BIBLE_IDS must contain at least one approved Bible ID.");
     process.exitCode = 1;
   } else {
-    const accessible: Array<{ id: number; abbreviation?: string; language_tag?: string }> = [];
+    const accessible: string[] = [];
+    const provider = new YouVersionRestProvider({ appKey, allowedBibleIds: new Set(allowed) });
+    const service = new ScriptureService(provider);
     for (const versionId of allowed) {
-      const response = await fetch(`https://api.youversion.com/v1/bibles/${versionId}`, {
-        headers: { Accept: "application/json", "X-YVP-App-Key": appKey },
-      });
-      if (!response.ok || response.status === 204) {
-        console.error(
-          `YouVersion probe failed for Bible ${versionId} with HTTP ${response.status}.`,
+      try {
+        const version = await provider.getVersion(versionId);
+        if (version.id !== versionId || !version.languageTag.toLowerCase().startsWith("vi")) {
+          throw new Error("Inaccessible Vietnamese version");
+        }
+        const index = await service.getIndex(versionId);
+        const book = index.books.find((entry) =>
+          entry.chapters.some((chapter) => chapter.verses.length),
         );
+        const chapter = book?.chapters.find((entry) => entry.verses.length);
+        const verse = chapter?.verses[0];
+        if (!book || !chapter || !verse) throw new Error("Missing version index");
+        const context = await service.lookupReference(
+          versionId,
+          `${book.id}.${chapter.number}.${verse.number}`,
+        );
+        if (!context.chunks[0]?.content || !context.version.copyright) {
+          throw new Error("Missing passage or attribution");
+        }
+        accessible.push(`${version.abbreviation} (${version.languageTag}, version/index/passage)`);
+      } catch {
+        // Never log response bodies, passage text, credentials or raw provider errors.
+        console.error(`YouVersion version/index/passage probe failed for Bible ${versionId}.`);
         process.exitCode = 1;
-        continue;
       }
-      const version = (await response.json()) as {
-        id?: number;
-        abbreviation?: string;
-        language_tag?: string;
-      };
-      if (version.id !== versionId || !version.language_tag?.toLowerCase().startsWith("vi")) {
-        console.error(`Bible ${versionId} is not an accessible Vietnamese version.`);
-        process.exitCode = 1;
-        continue;
-      }
-      accessible.push({ ...version, id: versionId });
     }
     if (accessible.length === allowed.length) {
-      console.info(
-        `YouVersion release probe passed for ${accessible.map((version) => `${version.abbreviation ?? version.id} (${version.language_tag ?? "unknown"})`).join(", ")}.`,
-      );
+      console.info(`YouVersion release probe passed for ${accessible.join(", ")}.`);
     }
   }
 }

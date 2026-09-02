@@ -9,6 +9,7 @@ import { GenerationGate } from "./GenerationGate";
 import { OpenAiMediaSafetyProvider } from "./integrations/openai/media-safety-provider";
 import { OpenAiResponsesProvider } from "./integrations/openai/responses-provider";
 import { YouVersionRestProvider } from "./integrations/youversion/rest-provider";
+import { prepareMediaInput } from "./question-intelligence/media-input";
 import { sanitizeGenerationProvenance } from "./question-intelligence/provenance-validation";
 import { QuestionIntelligenceService } from "./question-intelligence/service";
 import { QuestionMediaService } from "./question-media/service";
@@ -379,15 +380,10 @@ async function createRoom(request: Request, env: Env): Promise<Response> {
 
 function questionMediaService(env: Env): QuestionMediaService {
   requireFeature(env.QUESTION_MEDIA_ENABLED, "QUESTION_MEDIA_INVALID");
-  if (!env.QUESTION_MEDIA || !env.QUESTION_MEDIA_SIGNING_KEY || !env.OPENAI_API_KEY) {
+  if (!env.QUESTION_MEDIA || !env.QUESTION_MEDIA_SIGNING_KEY) {
     throw new AppError("QUESTION_MEDIA_INVALID", 503);
   }
-  return new QuestionMediaService(
-    env.QUESTION_MEDIA,
-    env.QUESTION_MEDIA_SIGNING_KEY,
-    new OpenAiMediaSafetyProvider(env.OPENAI_API_KEY),
-    env.OPENAI_TRANSCRIPTION_MODEL ?? "gpt-transcribe",
-  );
+  return new QuestionMediaService(env.QUESTION_MEDIA, env.QUESTION_MEDIA_SIGNING_KEY);
 }
 
 function mediaAssetId(pathname: string): string | undefined {
@@ -504,6 +500,7 @@ async function createQuestionSuggestions(request: Request, env: Env): Promise<Re
     requireFeature(env.AI_AUTO_BALANCE_ENABLED, "QUESTION_GENERATION_UNAVAILABLE");
   }
   if (!env.OPENAI_API_KEY) throw new AppError("QUESTION_GENERATION_UNAVAILABLE", 503);
+  const openAiApiKey = env.OPENAI_API_KEY;
   const releaseGenerationLease = await enforceGenerationQuota(
     request,
     env,
@@ -516,14 +513,17 @@ async function createQuestionSuggestions(request: Request, env: Env): Promise<Re
       ? await (async () => {
           requireFeature(env.AI_MEDIA_ANALYSIS_ENABLED, "QUESTION_GENERATION_UNAVAILABLE");
           if (!generationMediaCapability) throw new AppError("QUESTION_MEDIA_EXPIRED", 404);
-          return questionMediaService(env).generationInput(
+          return prepareMediaInput(
+            questionMediaService(env),
+            new OpenAiMediaSafetyProvider(openAiApiKey),
             generationMediaAssetId,
             generationMediaCapability,
+            env.OPENAI_TRANSCRIPTION_MODEL ?? "gpt-transcribe",
           );
         })()
       : undefined;
     const service = new QuestionIntelligenceService({
-      provider: new OpenAiResponsesProvider({ apiKey: env.OPENAI_API_KEY }),
+      provider: new OpenAiResponsesProvider({ apiKey: openAiApiKey }),
       scripture: scriptureService(env),
       model: env.OPENAI_GENERATION_MODEL ?? "gpt-5.6-terra",
       reviewModel: env.OPENAI_REVIEW_MODEL,
@@ -582,6 +582,15 @@ async function routeScripture(request: Request, env: Env, url: URL): Promise<Res
     const passageId = url.searchParams.get("passageId");
     if (!passageId) throw new AppError("SCRIPTURE_REFERENCE_INVALID", 400);
     return Response.json(await scriptureService(env).getContext(versionId, passageId));
+  }
+  if (url.pathname === "/api/scripture/lookup") {
+    if (request.method !== "GET") return errorResponse("BAD_REQUEST", 405, { Allow: "GET" });
+    const service = scriptureService(env);
+    const versionId = parseVersionId(url.searchParams.get("versionId") ?? "");
+    const reference = url.searchParams.get("reference") ?? "";
+    return Response.json(await service.lookupReference(versionId, reference), {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
   return undefined;
 }

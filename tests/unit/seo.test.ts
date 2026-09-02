@@ -11,6 +11,21 @@ function documentFor(path: string): Document {
 }
 
 describe("static SEO and AIEO publishing gates", () => {
+  it("discloses private temporary media storage and keeps AI separate in both privacy notices", () => {
+    for (const path of [
+      "/vi/quyen-rieng-tu-va-vong-doi-du-lieu/",
+      "/en/privacy-and-data-lifecycle/",
+    ]) {
+      const text = documentFor(path).querySelector("main")?.textContent ?? "";
+      expect(text).toContain("R2");
+      expect(text).toContain("24");
+      expect(text).toContain(".dkt.zip");
+      expect(text).toContain("OpenAI");
+      expect(text).not.toContain("không có binding Cloudflare D1 hoặc R2");
+      expect(text).not.toContain("has no Cloudflare D1 or R2 binding");
+    }
+  });
+
   it("publishes complete, unique, JavaScript-independent HTML for every locale route", () => {
     const titles = new Set<string>();
     const canonicals = new Set<string>();

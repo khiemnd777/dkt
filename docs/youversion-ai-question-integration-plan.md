@@ -1,8 +1,23 @@
 # YouVersion + AI Question Intelligence Integration Plan
 
-Status: implementation completed behind disabled-by-default feature flags; production enablement blocked by the legal/license, live-key, R2 lifecycle, eval, and privacy gates documented below
+Status: standalone Scripture lookup (Bible 1638) and ordinary media enabled for the 2026-09-02 production release; all optional AI flags remain disabled with separate release prerequisites
 
-Implementation note (2026-09-02): the repository now contains the canonical Scripture/YouVersion adapter and APIs, strict OpenAI Responses provider, deterministic validation and five strategy contracts, conditional independent semantic review with at most two targeted refill attempts, a content-free quota/concurrency GenerationGate, editable builder suggestions, `MULTIPLE_CHOICE` exact-set gameplay, provenance receipts, private moderated R2 image/MP3 flow, host-confirmed bounded media preparation timing, hash-verified `.dkt.zip` portability, and deploy-artifact secret checks. Optional YouVersion sign-in/highlights, durable user history, embeddings, camera/microphone capture, AI-created media, and cross-session personalization remain deliberately LATER decisions rather than release requirements.
+Implementation note (2026-09-02): the repository now contains the canonical Scripture/YouVersion adapter and APIs, strict OpenAI Responses provider, deterministic validation and five strategy contracts, conditional independent semantic review with at most two targeted refill attempts, a content-free quota/concurrency GenerationGate, editable builder suggestions, `MULTIPLE_CHOICE` exact-set gameplay, provenance receipts, independent validated private R2 image/MP3 flow, host-confirmed bounded media preparation timing, hash-verified `.dkt.zip` portability, and deploy-artifact secret checks. Optional YouVersion sign-in/highlights, durable user history, embeddings, camera/microphone capture, AI-created media, and cross-session personalization remain deliberately LATER decisions rather than release requirements.
+
+### Product clarification — 2026-09-02
+
+AI is an optional assistant, not the center of the application. Manual questions, image/audio
+attachments and accountless gameplay are ordinary product features. Upload, playback, room binding
+and media package import/export require only private R2, a media signing key and the media flag;
+they never require an OpenAI key, a YouVersion license or any AI flag. The user attests media rights,
+and deterministic file validation, signed access and expiry remain mandatory.
+
+YouVersion reference lookup is a separate feature at each Bible reference field. Only an explicit
+AI suggestion request may send selected media to OpenAI for moderation, analysis or transcription.
+The AI-specific licensing, privacy and eval gates apply to that optional route, not ordinary media.
+This clarification supersedes any initial-plan language below implying mandatory AI moderation
+of uploads or a release dependency from ordinary media to AI. Operational enablement details are
+maintained in `QUESTION_INTELLIGENCE_OPERATIONS.md`.
 
 Repository assessed: `do-kinh-thanh-live` on 2026-09-02
 
@@ -30,7 +45,7 @@ Recommended MVP sequence:
 - ship `SHORT_ANSWER` and `SINGLE_CHOICE` generation first;
 - integrate editable suggestion cards into the existing builder;
 - then add AI generation for `MULTIPLE_CHOICE`, `TRUE_FALSE`, `CROSSWORD`, and deterministic Auto Balance;
-- add image and sound upload/playback after short-lived object storage, accessibility, rights, and moderation controls are in place.
+- independently add image and sound upload/playback after short-lived object storage, accessibility, rights, deterministic file validation and signed access controls are in place; no AI prerequisite.
 
 There are two release blockers outside the repository:
 
@@ -226,7 +241,7 @@ Cloudflare Worker router
   |                                                    |
   +--> QuestionMediaService                            |
   |      +--> short-lived Cloudflare R2 objects        |
-  |      +--> type/signature/size/rights/moderation    |
+  |      +--> type/signature/size/rights validation   |
   |                                                    |
   +--> QuestionIntelligenceService                    |
          |                                            |
@@ -549,12 +564,12 @@ object key: quarantine/{yyyy-mm-dd}/{uploadId} while validating
             temp/{yyyy-mm-dd}/{assetId} only after promotion
 custom metadata: ownerBucketHmac, sha256, kind, mimeType, byteSize,
                  width/height or durationMs, createdAt, expiresAt,
-                 moderationStatus, rightsSource
+                 validationStatus, rightsSource
 lifecycle: delete quarantine/temp objects after 1 day (or the smallest supported bucket rule)
 room access: room-scoped HMAC URL expires no earlier than room expiry
 ```
 
-The server must never trust client-provided object metadata. Quarantine objects have no read route and are deleted on failure/timeout; upload is complete only after content signature/type, byte size, dimensions/duration, moderation, and rights attestation pass and the object is promoted to `temp/`. Never accept a client-selected R2 key or remote URL.
+The server must never trust client-provided object metadata. The implemented upload validates bytes in memory before storing under `temp/`; no failed upload receives a read route. Upload is complete only after content signature/type, byte size, dimensions/duration and rights attestation pass. This path never calls AI. Never accept a client-selected R2 key or remote URL.
 
 Suggested MVP limits, configurable in `shared/limits.ts`:
 
@@ -925,7 +940,7 @@ Given a draft, return actionable suggestions such as:
 | 1. Model-output schema | strict JSON Schema + server Zod | Exact type branch; bounded fields; no extras |
 | 2. Canonical reference | ScriptureService/index | Version accessible; USFM exists; evidence is inside requested scope |
 | 3. Evidence integrity | YouVersion re-fetch + hashes | Exact excerpt matches provider; quotation is not silently altered |
-| 4. Media integrity | QuestionMediaService | Owned, unexpired, hash/type/size/quality/accessibility/rights/moderation checks pass |
+| 4. Media integrity | QuestionMediaService; opt-in AI media-input helper | Owned, unexpired, hash/type/size/accessibility/rights checks pass; moderation is additional only when submitted to AI |
 | 5. Type business rules | strategy validator + existing schemas/compiler | Current/target item schema and runtime constraints pass; exact-set rules for `MULTIPLE_CHOICE` |
 | 6. Difficulty | deterministic feature scorer | Explainable score/label; model label cannot override |
 | 7. Semantic ambiguity | conditional independent AI review | No alternate/missing correct answer, context trap, or interpretive claim presented as fact |
@@ -963,7 +978,7 @@ GENERATED -> VALIDATED -> NEEDS_REVIEW -> human approve -> ordinary GameItem
 | Malicious provider HTML | use text format for AI; if HTML is displayed, sanitize/transform through a tested path; never `dangerouslySetInnerHTML` raw upstream content |
 | Malicious or mislabeled upload | private R2; signature/magic-byte validation; strict MIME allowlist; no SVG; safe image re-encode/metadata stripping; bounded audio; `nosniff` delivery |
 | Media answer leakage | discard filenames/EXIF; review alt/transcript/caption; reveal-only metadata stays private until reveal |
-| Copyright/privacy violation in media | explicit rights attestation, moderation, short TTL, report/delete path, no arbitrary remote URLs, and documented takedown process |
+| Copyright/privacy violation in media | explicit rights attestation, short TTL, report/delete path, no arbitrary remote URLs, and documented takedown process; separate consent and moderation for opt-in AI processing |
 | Media unavailable mid-round | validate object at room creation; room-scoped URL valid through room lifetime; preload metadata; text/accessibility fallback; fail question before start rather than during scoring |
 
 ### 13.2 Difficulty model
@@ -1160,7 +1175,7 @@ Use structured Cloudflare logs and existing dashboards first; do not add a clien
 | --- | --- | --- |
 | YouVersion | request count, operation, version ID, status class, 429 count, latency, retry count, cache hit/miss | no App Key, passage text, or full URL query if it contains sensitive data |
 | OpenAI | generation count, strategy, configured/returned model, latency, input/output/reasoning tokens, status, retry count | no prompt, Scripture, question, answer, or raw response |
-| Media | upload/serve/delete count, kind, byte/duration buckets, validation/moderation failures, expiry, range-response status, delivery latency | no filename, pixels/audio, transcript, alt text, signed URL, or ownership capability |
+| Media | upload/serve/delete count, kind, byte/duration buckets, file-validation failures, expiry, range-response status, delivery latency; AI moderation failures only for opt-in analysis | no filename, pixels/audio, transcript, alt text, signed URL, or ownership capability |
 | Validation | pass/warn/reject by check code/type, candidate yield, duplicate/ambiguity/reference rejection | IDs and aggregate counts only |
 | Product quality | candidate approval count, regenerate count, edit-distance bucket, type/difficulty mix | requires a privacy-reviewed content-free event; no text |
 | Operations | Turnstile failure, quota rejection, upstream availability, feature flag state | privacy-preserving bucket only |
@@ -1172,7 +1187,7 @@ Alert/release thresholds to establish after baseline traffic:
 - YouVersion 429 >1% or 5xx >2% in 15 minutes;
 - AI transport/schema failure >3%;
 - validation rejection >40% by strategy;
-- media validation/moderation failure changes materially from baseline or room playback errors exceed 1%;
+- media file-validation failure changes materially from baseline or room playback errors exceed 1%; AI moderation failures are monitored separately;
 - human approval <50% or heavy-edit >30%;
 - p95 generation latency above the agreed UX limit;
 - cost/day reaches 70% of the configured budget ceiling.
@@ -1659,8 +1674,8 @@ The exact names can shift during implementation, but ownership should remain thi
 
 - Objective: safely store and serve short-lived question images/sounds without using game JSON, DO state, WebSockets, or arbitrary URLs for bytes.
 - Files: `shared/question-media.ts`, `worker/question-media/*`, `worker/index.ts`, `worker/env.ts`, `wrangler.jsonc`, limits/errors, fake-R2 tests.
-- Dependencies: media rights/moderation/operations decision; Task 8 contracts.
-- Acceptance: private R2; opaque IDs; builder/room HMAC capabilities; signature/type/size/dimension/duration checks; rights attestation; moderation state; range audio; lifecycle/takedown deletion; no SVG/EXIF/key leakage.
+- Dependencies: media rights/operations decision; Task 8 contracts; no OpenAI or YouVersion dependency.
+- Acceptance: private R2; opaque IDs; builder/room HMAC capabilities; signature/type/size/dimension/duration checks; rights attestation; validation state; range audio; lifecycle/takedown deletion; no SVG/EXIF/key leakage; works with all AI flags off and no OpenAI key.
 - Tests: fake-R2 upload/serve/delete/expiry, forged/replayed token, MIME polyglot, range abuse, idempotency, room lifetime.
 
 ### Task 14 — media builder, runtime, accessibility, and package UX (L)

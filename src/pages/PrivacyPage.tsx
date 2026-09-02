@@ -15,7 +15,7 @@ export function PrivacyPage() {
         <div className="eyebrow">
           <ShieldCheck size={16} /> Quyền riêng tư theo vòng đời phòng
         </div>
-        <h1>Chơi xong là xóa sạch</h1>
+        <h1>Dữ liệu chỉ được lưu tạm thời</h1>
         <p className="lead">
           Ứng dụng không có tài khoản, lịch sử game, thư viện câu hỏi lâu dài hay bảng xếp hạng vĩnh
           viễn.
@@ -52,13 +52,25 @@ export function PrivacyPage() {
           <li>Ảnh đại diện tải lên</li>
           <li>Phân tích hành vi hoặc quảng cáo</li>
         </ul>
+        <h2>Ảnh và âm thanh câu hỏi</h2>
+        <p>
+          Nếu bạn tải ảnh hoặc MP3 lên, tệp được giữ trong kho riêng tư và chỉ truy cập được bằng
+          liên kết có thời hạn. Quyền truy cập hết hạn sau tối đa 24 giờ; tệp được dọn theo chính
+          sách vòng đời lưu trữ một ngày. Tệp không bị xóa ngay khi phòng kết thúc.
+        </p>
+        <p>
+          Tải lên và sử dụng ảnh/âm thanh trong game không gửi tệp tới OpenAI. Chỉ khi bạn chủ động
+          chọn tệp và yêu cầu trợ lý AI tạo câu hỏi, tệp mới được gửi để phân tích hoặc phiên âm.
+          Trợ lý AI là tính năng tùy chọn; soạn câu hỏi và chơi game không yêu cầu AI.
+        </p>
         <h2>File cấu hình do bạn quản lý</h2>
         <p>
-          Khi bạn chọn “Tải cấu hình”, trình duyệt lưu một file <code>.dkt.json</code> trên thiết bị
-          để bạn tiếp tục chỉnh sửa vào ngày khác hoặc trên thiết bị khác. File chỉ chứa nội dung và
-          cài đặt game; không chứa mã phòng, token bí mật, người chơi hay điểm số. File không được
-          tải lên máy chủ khi tạo ra, và ứng dụng không thể tự xóa file đã tải xuống khỏi thiết bị
-          của bạn.
+          Khi bạn chọn “Tải cấu hình”, trình duyệt lưu một file <code>.dkt.json</code> hoặc gói
+          <code>.dkt.zip</code> kèm ảnh/âm thanh trên thiết bị để bạn tiếp tục chỉnh sửa vào ngày
+          khác hoặc trên thiết bị khác. Khi nhập gói media, ứng dụng tải lại các tệp lên kho tạm.
+          File chỉ chứa nội dung và cài đặt game; không chứa mã phòng, token bí mật, người chơi hay
+          điểm số. File không được tải lên máy chủ khi tạo ra, và ứng dụng không thể tự xóa file đã
+          tải xuống khỏi thiết bị của bạn.
         </p>
         <p>
           Cloudflare vẫn có thể xử lý metadata vận hành ở cấp nền tảng theo chính sách của họ. Ứng

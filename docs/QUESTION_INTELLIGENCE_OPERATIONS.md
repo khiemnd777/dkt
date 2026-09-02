@@ -1,14 +1,39 @@
 # Question Intelligence and YouVersion operations
 
-This runbook covers deployment only. The feature flags in `wrangler.jsonc` intentionally default to
-`false`; the manual game builder and existing rooms do not depend on YouVersion, OpenAI, or R2.
+This runbook covers deployment only. The 2026-09-02 production release enables standalone Scripture
+lookup for KTHD/VCB (Bible 1638) and ordinary question media in `wrangler.jsonc`; all `AI_*` flags remain
+`false`. Media-free manual authoring and existing media-free rooms do not depend on YouVersion, OpenAI or R2.
 The builder capability-checks `/api/health` and fail-closes: disabled or unavailable integrations are
 not mounted and do not issue provider requests. Manual authoring, room creation, and gameplay remain
 the baseline experience.
 
-## Release blockers
+## Standalone reference lookup (no AI)
 
-Do not enable the integration in production until all of these are recorded outside the repository:
+Each question's Bible reference input, including crossword vertical and horizontal references,
+has an independent YouVersion lookup controlled **only** by `SCRIPTURE_PROVIDER_ENABLED`.
+After 600 ms without typing a complete address, it selects an available Vietnamese version and
+requests `GET /api/scripture/lookup?versionId=...&reference=...`. Localized names/abbreviations from
+the version index, accent-insensitive input, canonical USFM IDs, chapters and same-chapter verse
+ranges are supported. Ambiguous/invalid addresses are rejected, never guessed.
+
+The response is `no-store`; text is rendered as plain text with the version's attribution, held
+only in component memory, and is never inserted into the game, draft, export or an AI prompt.
+Switching references/questions cancels stale requests. Errors leave manual authoring usable.
+
+To release lookup alone, verify the app/version license permits passage display, provision
+`YVP_APP_KEY`, set `YVP_ALLOWED_BIBLE_IDS` to the approved IDs and enable
+`SCRIPTURE_PROVIDER_ENABLED`. **Keep all `AI_*` flags false.** The current Biblica/VCB approval
+does not authorize the AI quiz-generation use case; do not turn on AI just to show this lookup.
+The production release enables lookup only for approved Bible ID `1638`; AI remains off.
+
+Production prerequisites verified for this release: `YVP_APP_KEY` is an encrypted Worker secret;
+`QUESTION_MEDIA_SIGNING_KEY` was independently generated and stored directly as a Worker secret;
+the private `do-kinh-thanh-question-media` bucket has the `expire-temp-24h` lifecycle rule scoped
+to `temp/` with one-day expiry. No local `.dev.vars` file is uploaded or committed.
+
+## AI release blockers
+
+Do not enable AI generation in production until all of these are recorded outside the repository:
 
 1. YouVersion has approved the exact non-commercial application/use case.
 2. At least one Vietnamese Bible ID is accessible to this App Key.
@@ -26,7 +51,8 @@ Run the opt-in live Bible probe only after setting local secret environment valu
 bun run probe:youversion
 ```
 
-The probe prints only accessible version metadata and never prints the App Key.
+The probe validates the real provider schemas for version metadata, the book index and one verse;
+it prints only the version name/status, never the App Key or passage text.
 
 ## Local secrets
 
@@ -70,6 +96,32 @@ limits. Rotating production does not require changing `.dev.vars`.
 
 ## R2
 
+The image/MP3 editor is already implemented for all question types (including crossword rows),
+but is hidden when `QUESTION_MEDIA_ENABLED=false`. It is **not** a separate answer type.
+Upload, preview/playback, room binding and package import/export are independent of AI and YouVersion.
+The only media dependencies are `QUESTION_MEDIA_ENABLED`, the private `QUESTION_MEDIA` R2 binding and
+`QUESTION_MEDIA_SIGNING_KEY`. All `AI_*` flags may remain false and `OPENAI_API_KEY` may be absent.
+Uploads validate file signature/type, size, dimensions/duration, metadata and host rights attestation;
+they do not send files or descriptions to OpenAI. Stored metadata records `validationStatus=PASSED`,
+not semantic moderation approval. Legacy `moderationStatus=PASSED` assets remain readable only until
+their existing expiry. Signed capabilities, room scoping and 24-hour access expiry are unchanged.
+Before enabling uploads, verify the signing key, privacy notice and R2 lifecycle.
+
+Only an explicit request in the optional AI assistant sends selected media to OpenAI. That route
+requires both `AI_QUESTION_SUGGESTIONS_ENABLED` and `AI_MEDIA_ANALYSIS_ENABLED`, as well as OpenAI and
+the normal generation prerequisites. Image moderation or audio transcription/text moderation happen
+there, not during ordinary upload or gameplay. The assistant displays the submission notice at selection.
+
+For local end-to-end media checks, set `QUESTION_MEDIA_ENABLED=true` and an independent
+`QUESTION_MEDIA_SIGNING_KEY` in gitignored `.dev.vars`, keeping all `AI_*` flags false, then run:
+
+```bash
+bun run test:e2e -- e2e/question-media.spec.ts --project=chromium
+```
+
+These opt-in tests exercise actual uploads and ZIP export/re-import and skip when local media is
+disabled. Unit and Worker media tests always run, with no OpenAI key and external fetch calls rejected.
+
 Create the private buckets named in `wrangler.jsonc` before deployment:
 
 ```bash
@@ -93,13 +145,15 @@ check fails if any `.dev.vars` or `.env*` file remains under `dist/`.
 ## Safe enablement order
 
 1. Deploy the code and Durable Object migration while every new feature flag remains `false`.
-2. Provision secrets and R2 lifecycle; verify `GET /api/health` still reports all flags `false`.
-3. Set `YVP_ALLOWED_BIBLE_IDS` to the approved comma-separated numeric IDs.
-4. Enable `SCRIPTURE_PROVIDER_ENABLED` and run version/index/passage smoke tests.
-5. Enable `AI_QUESTION_SUGGESTIONS_ENABLED` for a small audience; keep Auto Balance and media off.
-6. Enable `AI_AUTO_BALANCE_ENABLED` after eval/cost review.
-7. Enable `QUESTION_MEDIA_ENABLED`, then `AI_MEDIA_ANALYSIS_ENABLED`, only after moderation/transcription
-   privacy and R2 lifecycle checks pass.
+2. To release ordinary media, provision the private R2 bucket, lifecycle and independent media signing
+   key, then enable `QUESTION_MEDIA_ENABLED`. Verify upload/playback/room creation with all AI flags off.
+3. Independently, to release Scripture lookup, provision `YVP_APP_KEY`, set `YVP_ALLOWED_BIBLE_IDS` to
+   approved IDs, enable `SCRIPTURE_PROVIDER_ENABLED` and run version/index/passage smoke tests.
+4. AI is optional and is not a prerequisite for steps 2 or 3. Only after the AI release blockers above
+   are cleared, provision the AI-specific secrets and enable `AI_QUESTION_SUGGESTIONS_ENABLED` for a
+   small audience. Keep Auto Balance and AI media analysis off initially.
+5. Enable `AI_AUTO_BALANCE_ENABLED` after eval/cost review. Enable `AI_MEDIA_ANALYSIS_ENABLED` only
+   after explicit media-to-OpenAI disclosure, licensing, moderation/transcription and privacy checks.
 
 Rollback is immediate flag-off. Do not delete Durable Object migrations from Wrangler. Media objects
 remain private and expire through lifecycle even after rollback.

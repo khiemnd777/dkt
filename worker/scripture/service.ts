@@ -5,7 +5,7 @@ import type {
   ScriptureProvider,
   ScriptureVersion,
 } from "../../shared/scripture";
-import { parseScriptureReference } from "./reference";
+import { parseScriptureReference, resolveScriptureReference } from "./reference";
 
 const LANGUAGE_RANGE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u;
 const versionListCache = new Map<
@@ -41,6 +41,18 @@ export class ScriptureService {
 
   getIndex(versionId: number): Promise<ScriptureIndex> {
     return cached(indexCache, versionId, 15 * 60_000, () => this.provider.getIndex(versionId));
+  }
+
+  async lookupReference(versionId: number, reference: string): Promise<ScriptureContext> {
+    if (!reference.trim() || reference.length > 120) {
+      throw new AppError("SCRIPTURE_REFERENCE_INVALID", 400);
+    }
+    // Authorize the version before reading a shared metadata cache. No AI calls or text cache.
+    const version = await this.provider.getVersion(versionId);
+    const index = await this.getIndex(versionId);
+    const requestedScope = resolveScriptureReference(versionId, reference, index);
+    const chunk = await this.provider.getPassage(requestedScope);
+    return { version, requestedScope, chunks: [chunk] };
   }
 
   async getContext(versionId: number, passageId: string): Promise<ScriptureContext> {
