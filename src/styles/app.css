@@ -942,6 +942,198 @@ textarea:focus {
   flex-direction: column;
   gap: 22px;
 }
+
+.question-media-editor {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 92%, var(--navy) 8%);
+}
+
+.media-upload-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.media-rights-check {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.65rem;
+}
+
+.media-rights-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+}
+
+.question-media {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  margin: 0.75rem auto;
+  max-width: min(100%, 48rem);
+}
+
+.question-media img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(42vh, 30rem);
+  object-fit: contain;
+  border-radius: 0.9rem;
+}
+
+.question-media audio {
+  width: min(100%, 36rem);
+}
+
+.question-media figcaption {
+  font-size: 0.84rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.question-media.compact img {
+  max-height: 14rem;
+}
+
+.question-media-fallback {
+  display: grid;
+  place-items: center;
+  min-width: 5rem;
+  min-height: 4rem;
+  border: 1px dashed var(--line);
+  border-radius: 0.8rem;
+  font-size: 2rem;
+}
+
+.ai-suggestions-panel {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 1.5rem auto 0;
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.ai-panel-toggle {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  border: 0;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(120deg, #fff8dc, #f4f7fb);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-panel-toggle > span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ai-panel-toggle small {
+  color: var(--muted);
+}
+
+.ai-panel-toggle > svg:last-child {
+  transition: transform 0.2s ease;
+}
+
+.ai-panel-toggle > svg.open:last-child {
+  transform: rotate(180deg);
+}
+
+.ai-panel-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.form-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-panel-body label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.ai-panel-body input,
+.ai-panel-body select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 0 0.75rem;
+  color: var(--navy);
+  background: var(--paper);
+}
+
+.scripture-scope-preview {
+  color: var(--muted);
+}
+
+.candidate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1rem;
+}
+
+.candidate-card {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+
+.candidate-card > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.candidate-state {
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  background: #e4f5ec;
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.candidate-state.warn {
+  background: #fff2cc;
+  color: #7c5b00;
+}
+
+.spin {
+  animation: media-spin 0.9s linear infinite;
+}
+
+@keyframes media-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .form-grid.three {
+    grid-template-columns: 1fr;
+  }
+}
 .editor-form label span,
 .editor-form small {
   color: var(--muted);

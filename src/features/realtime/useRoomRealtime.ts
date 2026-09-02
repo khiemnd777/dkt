@@ -72,11 +72,30 @@ function applyEvent(
         phase: "COUNTDOWN",
         currentRoundIndex: Number(payload.currentRoundIndex),
         countdownEndsAt: Number(payload.countdownEndsAt),
+        mediaReadyDeadlineAt: undefined,
+        mediaStartAt: undefined,
+        answerOpenedAt: undefined,
         currentRound: undefined,
         reveal: undefined,
         crosswordVerticalReveal: undefined,
         answeredCount: 0,
         crosswordVerticalPoints: undefined,
+      };
+    case "round.media_started":
+      return {
+        ...current,
+        phase: "MEDIA_PREPARE",
+        currentRound: payload.round as RoomSnapshot["currentRound"],
+        countdownEndsAt: undefined,
+        mediaReadyDeadlineAt:
+          typeof payload.mediaReadyDeadlineAt === "number"
+            ? payload.mediaReadyDeadlineAt
+            : undefined,
+        mediaStartAt: typeof payload.mediaStartAt === "number" ? payload.mediaStartAt : undefined,
+        answerOpenedAt:
+          typeof payload.answerOpenedAt === "number" ? payload.answerOpenedAt : undefined,
+        reveal: undefined,
+        answeredCount: 0,
       };
     case "round.opened": {
       const opened = payload as unknown as {
@@ -99,6 +118,9 @@ function applyEvent(
         deadlineAt: opened.deadlineAt,
         pausedRemainingMs: undefined,
         countdownEndsAt: undefined,
+        mediaReadyDeadlineAt: undefined,
+        mediaStartAt: undefined,
+        answerOpenedAt: undefined,
         eligibleCount: opened.eligibleCount,
         answeredCount: opened.answeredCount,
         crosswordVerticalPoints: opened.crosswordVerticalPoints,

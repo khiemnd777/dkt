@@ -46,6 +46,9 @@ export interface RoomProgress {
   phase: RoomPhase;
   currentRoundIndex: number;
   countdownEndsAt?: number;
+  mediaReadyDeadlineAt?: number;
+  mediaStartAt?: number;
+  answerOpenedAt?: number;
   openedAt?: number;
   deadlineAt?: number;
   pausedRemainingMs?: number;
@@ -116,6 +119,9 @@ export interface RoomSnapshot {
   openedAt?: number;
   deadlineAt?: number;
   countdownEndsAt?: number;
+  mediaReadyDeadlineAt?: number;
+  mediaStartAt?: number;
+  answerOpenedAt?: number;
   pausedRemainingMs?: number;
   currentRound?: Omit<RuntimeRound, "privateAnswer" | "revealPayload">;
   reveal?: RuntimeRound["revealPayload"];

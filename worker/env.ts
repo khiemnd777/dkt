@@ -1,8 +1,25 @@
 export interface Env {
   GAME_ROOMS: DurableObjectNamespace;
+  GENERATION_GATES?: DurableObjectNamespace;
+  QUESTION_MEDIA?: R2Bucket;
   ASSETS: Fetcher;
   APP_ENV: string;
   TURNSTILE_EXPECTED_ACTION: string;
+  TURNSTILE_GENERATION_ACTION?: string;
+  SCRIPTURE_PROVIDER_ENABLED?: string;
+  AI_QUESTION_SUGGESTIONS_ENABLED?: string;
+  AI_AUTO_BALANCE_ENABLED?: string;
+  QUESTION_MEDIA_ENABLED?: string;
+  AI_MEDIA_ANALYSIS_ENABLED?: string;
+  YVP_ALLOWED_BIBLE_IDS?: string;
+  YVP_APP_KEY?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_GENERATION_MODEL?: string;
+  OPENAI_REVIEW_MODEL?: string;
+  OPENAI_TRANSCRIPTION_MODEL?: string;
+  PROVENANCE_SIGNING_KEY?: string;
+  GENERATION_ABUSE_HMAC_KEY?: string;
+  QUESTION_MEDIA_SIGNING_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   INDEXNOW_KEY?: string;
 }

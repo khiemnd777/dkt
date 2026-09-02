@@ -1,6 +1,9 @@
 import { ERROR_MESSAGES, type ErrorCode } from "@shared/errors";
-import type { GameDefinition } from "@shared/game";
+import type { BuilderMediaHandle, GameDefinition } from "@shared/game";
+import type { QuestionSuggestionsResponse } from "@shared/question-intelligence";
+import type { QuestionSuggestionsRequest } from "@shared/question-intelligence-schemas";
 import type { PublicRoomMetadata, SessionRole } from "@shared/room";
+import type { ScriptureContext, ScriptureIndex, ScriptureVersion } from "@shared/scripture";
 
 export class ApiError extends Error {
   constructor(
@@ -46,12 +49,32 @@ export interface RoomBootstrap {
   expiresAt: number;
 }
 
+export interface RuntimeFeatures {
+  scripture: boolean;
+  questionSuggestions: boolean;
+  autoBalance: boolean;
+  questionMedia: boolean;
+  aiMediaAnalysis: boolean;
+}
+
+export interface HealthResponse {
+  ok: boolean;
+  turnstileProtected: boolean;
+  environment: string;
+  features: RuntimeFeatures;
+}
+
 export const api = {
-  createRoom: (game: GameDefinition, turnstileToken?: string) =>
+  health: () => fetch("/api/health", { cache: "no-store" }).then(parseResponse<HealthResponse>),
+  createRoom: (
+    game: GameDefinition,
+    turnstileToken?: string,
+    mediaCapabilities?: Record<string, string>,
+  ) =>
     fetch("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game, turnstileToken }),
+      body: JSON.stringify({ game, turnstileToken, mediaCapabilities }),
     }).then(parseResponse<RoomBootstrap>),
   publicRoom: (code: string) =>
     fetch(`/api/rooms/${code}/public`).then(parseResponse<PublicRoomMetadata>),
@@ -81,4 +104,29 @@ export const api = {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: "{}",
     }),
+  uploadQuestionMedia: (form: FormData) =>
+    fetch("/api/question-media", { method: "POST", body: form }).then(
+      parseResponse<BuilderMediaHandle>,
+    ),
+  deleteQuestionMedia: (assetId: string, deleteCapability: string) =>
+    fetch(`/api/question-media/${assetId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${deleteCapability}` },
+    }).then(parseResponse<void>),
+  scriptureVersions: (language = "vi") =>
+    fetch(`/api/scripture/versions?language=${encodeURIComponent(language)}`).then(
+      parseResponse<{ versions: ScriptureVersion[] }>,
+    ),
+  scriptureIndex: (versionId: number) =>
+    fetch(`/api/scripture/versions/${versionId}/index`).then(parseResponse<ScriptureIndex>),
+  scripturePassage: (versionId: number, passageId: string) =>
+    fetch(
+      `/api/scripture/passage?versionId=${versionId}&passageId=${encodeURIComponent(passageId)}`,
+    ).then(parseResponse<ScriptureContext>),
+  questionSuggestions: (input: QuestionSuggestionsRequest) =>
+    fetch("/api/question-suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then(parseResponse<QuestionSuggestionsResponse>),
 };

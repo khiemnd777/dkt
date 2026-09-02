@@ -14,6 +14,19 @@ export const ERROR_MESSAGES = {
   LATE_ANSWER: "Đã hết thời gian trả lời.",
   NOT_ELIGIBLE: "Bạn sẽ bắt đầu từ câu tiếp theo.",
   RATE_LIMITED: "Thao tác quá nhanh. Vui lòng thử lại sau.",
+  SCRIPTURE_DISABLED: "Tính năng tra cứu Kinh Thánh chưa được bật.",
+  SCRIPTURE_VERSION_UNAVAILABLE: "Bản dịch Kinh Thánh này hiện không khả dụng.",
+  SCRIPTURE_REFERENCE_INVALID: "Phân đoạn Kinh Thánh không hợp lệ.",
+  SCRIPTURE_LICENSE_UNAVAILABLE: "Bản dịch này chưa được cấp quyền cho ứng dụng.",
+  SCRIPTURE_PROVIDER_RATE_LIMITED:
+    "Dịch vụ Kinh Thánh đang giới hạn yêu cầu. Vui lòng thử lại sau.",
+  QUESTION_GENERATION_RATE_LIMITED: "Đã đạt giới hạn tạo câu hỏi. Vui lòng thử lại sau.",
+  QUESTION_GENERATION_UNAVAILABLE: "Không thể tạo câu hỏi lúc này.",
+  NO_VALID_CANDIDATES: "Không có câu hỏi đề xuất nào vượt qua kiểm tra.",
+  QUESTION_MEDIA_INVALID: "Tệp hình ảnh hoặc âm thanh không hợp lệ.",
+  QUESTION_MEDIA_EXPIRED: "Tệp hình ảnh hoặc âm thanh đã hết hạn.",
+  QUESTION_MEDIA_UNSAFE: "Tệp hình ảnh hoặc âm thanh không vượt qua kiểm tra an toàn.",
+  QUESTION_MEDIA_RIGHTS_REQUIRED: "Cần xác nhận quyền sử dụng tệp này.",
   PLATFORM_UNAVAILABLE:
     "Hệ thống tạm thời đã đạt giới hạn sử dụng miễn phí hoặc đang quá tải. Vui lòng thử lại sau.",
   INTERNAL_ERROR: "Đã xảy ra lỗi. Vui lòng thử lại.",
@@ -26,11 +39,26 @@ export class AppError extends Error {
     public readonly code: ErrorCode,
     public readonly status: number,
     message: string = ERROR_MESSAGES[code],
+    public readonly retryAfterSec?: number,
   ) {
     super(message);
   }
 }
 
-export function errorResponse(code: ErrorCode, status: number, headers?: HeadersInit): Response {
-  return Response.json({ error: { code, message: ERROR_MESSAGES[code] } }, { status, headers });
+export function errorResponse(
+  code: ErrorCode,
+  status: number,
+  headers?: HeadersInit,
+  retryAfterSec?: number,
+): Response {
+  return Response.json(
+    {
+      error: {
+        code,
+        message: ERROR_MESSAGES[code],
+        ...(retryAfterSec ? { retryAfterSec } : {}),
+      },
+    },
+    { status, headers },
+  );
 }

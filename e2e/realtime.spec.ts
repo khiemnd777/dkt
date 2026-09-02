@@ -152,6 +152,66 @@ test("Scenario B — SPEED_RACE rewards both correct players and more to the fas
   }
 });
 
+test("Scenario B2 — MULTIPLE_CHOICE requires explicit submit and exact answer set", async ({
+  browser,
+  request,
+}) => {
+  const multipleChoice: GameDefinition = {
+    title: "Nhiều đáp án E2E",
+    mode: "TURN_BASED",
+    defaultDurationSec: 10,
+    createdClientVersion: "e2e",
+    items: [
+      {
+        id: "multiple-1",
+        type: "MULTIPLE_CHOICE",
+        prompt: "Những ai là con trai của Nô-ê?",
+        options: [
+          { id: "shem", text: "Sem" },
+          { id: "ham", text: "Cham" },
+          { id: "abraham", text: "Áp-ra-ham" },
+        ],
+        correctOptionIds: ["shem", "ham"],
+      },
+    ],
+  };
+  const room = await createRoom(request, multipleChoice);
+  const host = await newPage(browser);
+  const correctPlayer = await newPage(browser);
+  const wrongPlayer = await newPage(browser);
+  try {
+    await host.page.goto(room.hostUrl);
+    await joinPlayer(correctPlayer.page, room, "Đủ Bộ");
+    await joinPlayer(wrongPlayer.page, room, "Thừa Một");
+    await host.page.getByRole("button", { name: "Bắt đầu game" }).click();
+    await expect(
+      correctPlayer.page.getByRole("heading", { name: "Những ai là con trai của Nô-ê?" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await correctPlayer.page.getByRole("button", { name: /Sem/ }).click();
+    await expect(
+      correctPlayer.page.getByRole("button", { name: /Gửi câu trả lời/ }),
+    ).toBeDisabled();
+    await correctPlayer.page.getByRole("button", { name: /Cham/ }).click();
+    await correctPlayer.page.getByRole("button", { name: /Gửi câu trả lời/ }).click();
+
+    await wrongPlayer.page.getByRole("button", { name: /Sem/ }).click();
+    await wrongPlayer.page.getByRole("button", { name: /Áp-ra-ham/ }).click();
+    await wrongPlayer.page.getByRole("button", { name: /Gửi câu trả lời/ }).click();
+    await host.page.getByRole("button", { name: "Hiện đáp án" }).click();
+
+    await expect(correctPlayer.page.getByText("Chính xác!", { exact: true })).toBeVisible();
+    await expect(correctPlayer.page.getByText("+1000 điểm", { exact: true })).toBeVisible();
+    await expect(wrongPlayer.page.getByText("Chưa đúng", { exact: true })).toBeVisible();
+  } finally {
+    await Promise.all([
+      host.context.close(),
+      correctPlayer.context.close(),
+      wrongPlayer.context.close(),
+    ]);
+  }
+});
+
 test("Scenario C — crossword reveals the vertical answer after the final horizontal row", async ({
   browser,
   request,

@@ -68,6 +68,8 @@ test("UAT — restores an ephemeral builder draft and serves installable PWA ass
   request,
 }) => {
   await page.goto("/create");
+  await expect(page.getByText("Trợ lý tạo câu hỏi từ YouVersion", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Hình ảnh hoặc âm thanh câu hỏi", { exact: true })).toHaveCount(0);
   const poweredBy = page.getByRole("link", { name: /KNASOFTWARE/u });
   await expect(poweredBy).toBeVisible();
   await expect(poweredBy).toHaveAttribute("href", "https://www.knasoftware.com");

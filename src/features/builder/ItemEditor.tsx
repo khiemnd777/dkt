@@ -1,39 +1,71 @@
-import type { CrosswordItem, GameItem } from "@shared/game";
+import type { BuilderMediaHandle, CrosswordItem, GameItem, QuestionMediaRef } from "@shared/game";
 import { LIMITS } from "@shared/limits";
 import { answerCells } from "@shared/text";
 import { Check, CirclePlus, Trash2 } from "lucide-react";
 import { newId } from "./factories";
+import { QuestionMediaEditor } from "./QuestionMediaEditor";
 
-export function ItemEditor({ item, update }: { item: GameItem; update: (next: GameItem) => void }) {
+interface ItemEditorProps {
+  item: GameItem;
+  update: (next: GameItem) => void;
+  mediaHandles: Record<string, BuilderMediaHandle>;
+  onMediaHandle: (handle: BuilderMediaHandle) => void;
+  mediaEnabled: boolean;
+}
+
+export function ItemEditor({
+  item,
+  update,
+  mediaHandles,
+  onMediaHandle,
+  mediaEnabled,
+}: ItemEditorProps) {
+  const mediaEditor = (
+    media: QuestionMediaRef | undefined,
+    onChange: (next?: QuestionMediaRef) => void,
+  ) =>
+    mediaEnabled ? (
+      <QuestionMediaEditor
+        media={media}
+        handle={media ? mediaHandles[media.assetId] : undefined}
+        onChange={onChange}
+        onHandle={onMediaHandle}
+      />
+    ) : null;
   const common = (
-    <div className="form-grid two">
-      <label>
-        Thời gian riêng <span>(giây, để trống dùng mặc định)</span>
-        <input
-          type="number"
-          min={LIMITS.minDurationSec}
-          max={LIMITS.maxDurationSec}
-          value={"durationSec" in item ? (item.durationSec ?? "") : ""}
-          onChange={(event) =>
-            update({
-              ...item,
-              durationSec: event.target.value ? Number(event.target.value) : undefined,
-            } as GameItem)
-          }
-        />
-      </label>
-      <label>
-        Câu Kinh Thánh tham khảo <span>(không bắt buộc)</span>
-        <input
-          value={item.bibleReference ?? ""}
-          maxLength={120}
-          onChange={(event) =>
-            update({ ...item, bibleReference: event.target.value || undefined } as GameItem)
-          }
-          placeholder="1 Sa-mu-ên 17:50"
-        />
-      </label>
-    </div>
+    <>
+      <div className="form-grid two">
+        <label>
+          Thời gian riêng <span>(giây, để trống dùng mặc định)</span>
+          <input
+            type="number"
+            min={LIMITS.minDurationSec}
+            max={LIMITS.maxDurationSec}
+            value={"durationSec" in item ? (item.durationSec ?? "") : ""}
+            onChange={(event) =>
+              update({
+                ...item,
+                durationSec: event.target.value ? Number(event.target.value) : undefined,
+              } as GameItem)
+            }
+          />
+        </label>
+        <label>
+          Câu Kinh Thánh tham khảo <span>(không bắt buộc)</span>
+          <input
+            value={item.bibleReference ?? ""}
+            maxLength={120}
+            onChange={(event) =>
+              update({ ...item, bibleReference: event.target.value || undefined } as GameItem)
+            }
+            placeholder="1 Sa-mu-ên 17:50"
+          />
+        </label>
+      </div>
+      {mediaEditor(item.presentation?.media, (media) =>
+        update({ ...item, presentation: media ? { media } : undefined } as GameItem),
+      )}
+    </>
   );
   if (item.type === "SINGLE_CHOICE") {
     return (
@@ -107,6 +139,95 @@ export function ItemEditor({ item, update }: { item: GameItem; update: (next: Ga
           >
             <CirclePlus /> Thêm lựa chọn
           </button>
+        </fieldset>
+        {common}
+        <Explanation item={item} update={update} />
+      </div>
+    );
+  }
+  if (item.type === "MULTIPLE_CHOICE") {
+    return (
+      <div className="editor-form">
+        <label className="prominent">
+          Câu hỏi <span>(người chơi chọn tất cả đáp án đúng)</span>
+          <textarea
+            value={item.prompt}
+            maxLength={300}
+            onChange={(event) => update({ ...item, prompt: event.target.value })}
+          />
+        </label>
+        <fieldset className="options-editor">
+          <legend>Các lựa chọn · chọn ít nhất hai đáp án đúng</legend>
+          {item.options.map((option, index) => {
+            const selected = item.correctOptionIds.includes(option.id);
+            return (
+              <div className="option-edit" key={option.id}>
+                <button
+                  className={`correct-radio ${selected ? "selected" : ""}`}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      ...item,
+                      correctOptionIds: selected
+                        ? item.correctOptionIds.filter((id) => id !== option.id)
+                        : [...item.correctOptionIds, option.id],
+                    })
+                  }
+                  aria-pressed={selected}
+                  aria-label={`${selected ? "Bỏ" : "Đặt"} lựa chọn ${index + 1} là đáp án đúng`}
+                >
+                  {selected ? <Check strokeWidth={3.2} /> : index + 1}
+                </button>
+                <input
+                  value={option.text}
+                  maxLength={120}
+                  onChange={(event) =>
+                    update({
+                      ...item,
+                      options: item.options.map((candidate) =>
+                        candidate.id === option.id
+                          ? { ...candidate, text: event.target.value }
+                          : candidate,
+                      ),
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label="Xóa lựa chọn"
+                  disabled={item.options.length <= LIMITS.minMultipleChoiceOptions}
+                  onClick={() =>
+                    update({
+                      ...item,
+                      options: item.options.filter((candidate) => candidate.id !== option.id),
+                      correctOptionIds: item.correctOptionIds.filter((id) => id !== option.id),
+                    })
+                  }
+                >
+                  <Trash2 />
+                </button>
+              </div>
+            );
+          })}
+          <button
+            className="button tertiary"
+            type="button"
+            disabled={item.options.length >= LIMITS.maxChoiceOptions}
+            onClick={() =>
+              update({
+                ...item,
+                options: [
+                  ...item.options,
+                  { id: newId("option"), text: `Lựa chọn ${item.options.length + 1}` },
+                ],
+              })
+            }
+          >
+            <CirclePlus /> Thêm lựa chọn
+          </button>
+          <p className="helper">
+            Tính đúng khi tập lựa chọn khớp hoàn toàn; phiên bản đầu không chấm điểm một phần.
+          </p>
         </fieldset>
         {common}
         <Explanation item={item} update={update} />
@@ -192,7 +313,7 @@ export function ItemEditor({ item, update }: { item: GameItem; update: (next: Ga
       </div>
     );
   }
-  return <CrosswordEditor item={item} update={(next) => update(next)} />;
+  return <CrosswordEditor item={item} update={(next) => update(next)} mediaEditor={mediaEditor} />;
 }
 
 function Explanation({ item, update }: { item: GameItem; update: (next: GameItem) => void }) {
@@ -213,9 +334,14 @@ function Explanation({ item, update }: { item: GameItem; update: (next: GameItem
 function CrosswordEditor({
   item,
   update,
+  mediaEditor,
 }: {
   item: CrosswordItem;
   update: (next: CrosswordItem) => void;
+  mediaEditor: (
+    media: QuestionMediaRef | undefined,
+    onChange: (next?: QuestionMediaRef) => void,
+  ) => React.ReactNode;
 }) {
   const changeRow = (rowId: string, patch: Partial<CrosswordItem["horizontalRows"][number]>) =>
     update({
@@ -268,7 +394,35 @@ function CrosswordEditor({
             }
           />
         </label>
+        <label>
+          Thời gian đoán hàng dọc <span>(không bắt buộc)</span>
+          <input
+            type="number"
+            min={LIMITS.minDurationSec}
+            max={LIMITS.maxDurationSec}
+            value={item.verticalDurationSec ?? ""}
+            onChange={(event) =>
+              update({
+                ...item,
+                verticalDurationSec: event.target.value ? Number(event.target.value) : undefined,
+              })
+            }
+          />
+        </label>
+        <label>
+          Câu Kinh Thánh cho từ khóa dọc
+          <input
+            value={item.bibleReference ?? ""}
+            maxLength={120}
+            onChange={(event) =>
+              update({ ...item, bibleReference: event.target.value || undefined })
+            }
+          />
+        </label>
       </div>
+      {mediaEditor(item.presentation?.media, (media) =>
+        update({ ...item, presentation: media ? { media } : undefined }),
+      )}
       <div className="crossword-rows">
         <div className="section-title">
           <h3>Hàng ngang</h3>
@@ -320,6 +474,44 @@ function CrosswordEditor({
                   }
                 />
               </label>
+              <label>
+                Cách viết khác <span>(phân cách bằng dấu phẩy)</span>
+                <input
+                  value={row.acceptedAliases.join(", ")}
+                  maxLength={400}
+                  onChange={(event) =>
+                    changeRow(row.id, {
+                      acceptedAliases: event.target.value
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean)
+                        .slice(0, LIMITS.maxAliases),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Câu Kinh Thánh tham khảo
+                <input
+                  value={row.bibleReference ?? ""}
+                  maxLength={120}
+                  onChange={(event) =>
+                    changeRow(row.id, {
+                      bibleReference: event.target.value || undefined,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Lời giải thích
+                <textarea
+                  value={row.explanation ?? ""}
+                  maxLength={500}
+                  onChange={(event) =>
+                    changeRow(row.id, { explanation: event.target.value || undefined })
+                  }
+                />
+              </label>
               <div>
                 <span className="field-label">Chọn ô tạo từ khóa dọc</span>
                 <div className="cell-picker">
@@ -335,6 +527,9 @@ function CrosswordEditor({
                   ))}
                 </div>
               </div>
+              {mediaEditor(row.presentation?.media, (media) =>
+                changeRow(row.id, { presentation: media ? { media } : undefined }),
+              )}
             </div>
           );
         })}

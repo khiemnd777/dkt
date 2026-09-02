@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { crosswordItemSchema } from "../../shared/schemas";
+import { crosswordItemSchema, multipleChoiceItemSchema } from "../../shared/schemas";
 import { answerCells, normalizeAnswer } from "../../shared/text";
+import { nextAlarmAt } from "../../worker/room/alarm-scheduler";
 import { rankPlayers } from "../../worker/room/ranking";
 import { compileGame } from "../../worker/room/round-compiler";
 import {
@@ -10,7 +11,7 @@ import {
 } from "../../worker/room/scoring";
 import { filterRoundForPublic } from "../../worker/room/snapshot-filter";
 import { assertTransition, canTransition } from "../../worker/room/state-machine";
-import { crosswordGame, smallGame } from "../fixtures/games";
+import { crosswordGame, multipleChoiceGame, smallGame } from "../fixtures/games";
 
 describe("Vietnamese answer normalization", () => {
   it.each(["Đa-vít", "Đa Vít", "ĐAVÍT", "da vit", "DAVIT"])("normalizes %s", (value) => {
@@ -45,6 +46,26 @@ describe("round evaluation and scoring", () => {
     expect(isCorrectAnswer(round, { type: "BOOLEAN", value: true })).toBe(true);
     expect(isCorrectAnswer(round, { type: "BOOLEAN", value: false })).toBe(false);
     expect(isCorrectAnswer(round, { type: "TEXT", value: "Đúng" })).toBe(false);
+  });
+
+  it("scores MULTIPLE_CHOICE as an exact unordered set without duplicates", () => {
+    const round = compileGame(multipleChoiceGame)[0];
+    expect(round.kind).toBe("MULTIPLE_CHOICE");
+    expect(isCorrectAnswer(round, { type: "OPTIONS", optionIds: ["ham", "shem"] })).toBe(true);
+    expect(isCorrectAnswer(round, { type: "OPTIONS", optionIds: ["shem"] })).toBe(false);
+    expect(isCorrectAnswer(round, { type: "OPTIONS", optionIds: ["shem", "ham", "abraham"] })).toBe(
+      false,
+    );
+    expect(isCorrectAnswer(round, { type: "OPTIONS", optionIds: ["shem", "shem"] })).toBe(false);
+  });
+
+  it("rejects invalid MULTIPLE_CHOICE answer cardinality", () => {
+    const item = structuredClone(multipleChoiceGame.items[0]);
+    if (item.type !== "MULTIPLE_CHOICE") throw new Error("fixture");
+    item.correctOptionIds = ["shem"];
+    expect(multipleChoiceItemSchema.safeParse(item).success).toBe(false);
+    item.correctOptionIds = item.options.map((option) => option.id);
+    expect(multipleChoiceItemSchema.safeParse(item).success).toBe(false);
   });
 
   it("filters private answers and pre-reveal payloads from public rounds", () => {
@@ -218,5 +239,63 @@ describe("ranking and state machine", () => {
     expect(canTransition("QUESTION_PAUSED", "QUESTION_LOCKED")).toBe(false);
     expect(canTransition("LOBBY", "QUESTION_OPEN")).toBe(false);
     expect(() => assertTransition("QUESTION_OPEN", "FINISHED")).toThrow();
+  });
+});
+
+describe("media preparation timing", () => {
+  it("keeps media preparation outside the scored answer window", () => {
+    expect(canTransition("COUNTDOWN", "MEDIA_PREPARE")).toBe(true);
+    expect(canTransition("MEDIA_PREPARE", "QUESTION_OPEN")).toBe(true);
+    expect(canTransition("MEDIA_PREPARE", "QUESTION_LOCKED")).toBe(false);
+    const now = Date.now();
+    expect(
+      nextAlarmAt(
+        {
+          roomCode: "ABC234",
+          status: "ACTIVE",
+          createdAt: now,
+          hardExpiresAt: now + 60_000,
+          inactivityExpiresAt: now + 50_000,
+          lastHostActivityAt: now,
+          protocolVersion: 1,
+          stateVersion: 1,
+          sequence: 0,
+        },
+        {
+          phase: "MEDIA_PREPARE",
+          currentRoundIndex: 0,
+          mediaStartAt: now,
+          answerOpenedAt: now + 5_000,
+          revealedRoundIds: [],
+          nextAction: "WAIT_FOR_MEDIA",
+        },
+      ),
+    ).toBe(now + 5_000);
+  });
+
+  it("waits for bounded host readiness before scheduling media playback", () => {
+    const now = Date.now();
+    expect(
+      nextAlarmAt(
+        {
+          roomCode: "ABC234",
+          status: "ACTIVE",
+          createdAt: now,
+          hardExpiresAt: now + 60_000,
+          inactivityExpiresAt: now + 50_000,
+          lastHostActivityAt: now,
+          protocolVersion: 1,
+          stateVersion: 1,
+          sequence: 0,
+        },
+        {
+          phase: "MEDIA_PREPARE",
+          currentRoundIndex: 0,
+          mediaReadyDeadlineAt: now + 10_000,
+          revealedRoundIds: [],
+          nextAction: "WAIT_FOR_MEDIA_READY",
+        },
+      ),
+    ).toBe(now + 10_000);
   });
 });

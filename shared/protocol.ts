@@ -6,6 +6,17 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("client.request_snapshot") }).strict(),
   z.object({ type: z.literal("client.leave") }).strict(),
   z.object({ type: z.literal("host.start_game") }).strict(),
+  z
+    .object({
+      type: z.literal("host.media_ready"),
+      payload: z
+        .object({
+          roundId: z.string().min(1).max(160),
+          mode: z.enum(["READY", "FALLBACK"]),
+        })
+        .strict(),
+    })
+    .strict(),
   z.object({ type: z.literal("host.open_next_round") }).strict(),
   z.object({ type: z.literal("host.pause_round") }).strict(),
   z.object({ type: z.literal("host.resume_round") }).strict(),
@@ -30,6 +41,12 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
           submissionId: z.string().min(8).max(100),
           answer: z.discriminatedUnion("type", [
             z.object({ type: z.literal("OPTION"), optionId: z.string().min(1).max(80) }).strict(),
+            z
+              .object({
+                type: z.literal("OPTIONS"),
+                optionIds: z.array(z.string().min(1).max(80)).min(2).max(6),
+              })
+              .strict(),
             z.object({ type: z.literal("BOOLEAN"), value: z.boolean() }).strict(),
             z.object({ type: z.literal("TEXT"), value: z.string().max(240) }).strict(),
           ]),
@@ -59,6 +76,7 @@ export type ServerEventType =
   | "room.player_left"
   | "room.player_updated"
   | "game.countdown_started"
+  | "round.media_started"
   | "round.opened"
   | "round.paused"
   | "round.resumed"

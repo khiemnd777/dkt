@@ -4,15 +4,16 @@ Một website tài liệu song ngữ và web game mobile-first: người dẫn t
 
 > Mở lên → tạo game → tạo phòng → cùng chơi → xem bảng xếp hạng → xóa sạch.
 
-**Designed to run at $0 within the current Cloudflare Free plan quotas.** Không có tuyên bố “free forever” hoặc dung lượng không giới hạn.
+**Core realtime gameplay is designed to run at $0 within current Cloudflare Free plan quotas.** AI generation/transcription is separately billable through OpenAI; question media must remain inside R2 Standard free allowances. Không có tuyên bố “free forever” hoặc dung lượng không giới hạn.
 
 > The application is designed to operate within Cloudflare Free plan quotas. When those quotas are exceeded, realtime room operations may temporarily fail until the quota resets or the account is upgraded.
 
 ## Trải nghiệm sản phẩm
 
 - Trình tạo game kiểu Google Forms + Kahoot, không có tài khoản hay thư viện lưu lâu dài; bản nháp tự khôi phục trong `sessionStorage` của tab và tự xóa sau khi tạo phòng.
-- Tải bản nháp chưa hoàn chỉnh thành file `.dkt.json`, rồi nhập lại trên thiết bị hoặc ngày khác; file chỉ chứa cấu hình game, không chứa mã phòng, token, người chơi hay điểm số.
-- Bốn loại nội dung: trắc nghiệm, đúng/sai, trả lời ngắn chính xác và ô chữ Kinh Thánh hàng ngang/từ khóa dọc.
+- Tải bản nháp media-free thành `.dkt.json`; game có ảnh/âm thanh dùng gói `.dkt.zip` kiểm tra hash. Cả hai định dạng đều loại mã phòng, capability, token, người chơi và điểm số.
+- Năm loại nội dung: chọn một, chọn nhiều đáp án (exact set), đúng/sai, trả lời ngắn chính xác và ô chữ Kinh Thánh hàng ngang/từ khóa dọc.
+- Trợ lý tùy chọn dùng YouVersion làm nguồn Kinh Thánh và OpenAI để đề xuất câu hỏi; mọi đề xuất phải vượt kiểm tra server và được người tạo chấp thuận/chỉnh sửa. UI chỉ mount integration sau khi health capability xác nhận feature đang bật; khi tắt hoặc provider lỗi, builder thủ công và gameplay không gọi hay phụ thuộc vào AI.
 - Hai chế độ: **Theo lượt câu hỏi** (mọi đáp án đúng nhận điểm bằng nhau) và **Đua tốc độ** (mọi người đúng đều có điểm; nhanh hơn được nhiều hơn).
 - Ba phiên tách biệt: người dẫn, người chơi và màn hình trình chiếu chỉ đọc.
 - Reconnect bằng token tạm trong `sessionStorage`; không dùng `localStorage` hoặc IndexedDB.
@@ -40,6 +41,10 @@ flowchart LR
   B["React game SPA / PWA"] -->|"game host /api/*"| W["Host-aware Cloudflare Worker"]
   B <-->|"one WebSocket per role"| W
   W -->|"idFromName(roomCode)"| D["SQLite-backed GameRoom Durable Object"]
+  W -->|"content-free quota"| G["GenerationGate Durable Object"]
+  W -->|"private, short-lived"| R2["Question media R2"]
+  W --> YV["YouVersion REST"]
+  W --> OAI["OpenAI Responses / Moderation / Transcription"]
   D --> STATE["Compact temporary room state"]
   D --> ALARM["Alarms: deadline, TTL, deletion"]
 ```
@@ -75,7 +80,7 @@ Các mutation của một phòng được đưa qua hàng đợi tuần tự tro
 - Người dẫn có thể xác nhận “Kết thúc và xóa phòng ngay”.
 - Cleanup chuyển sang `DELETING`, broadcast, đóng socket và luôn gọi `ctx.storage.deleteAll()`.
 
-Ứng dụng không có replay, lịch sử, thư viện quiz trên máy chủ, leaderboard vĩnh viễn, upload file lên máy chủ, email/số điện thoại, quảng cáo hay analytics SDK. Người tạo có thể chủ động tải cấu hình game về máy thành file `.dkt.json` có phiên bản, tối đa 512 KiB; file có thể chứa nội dung đang viết dở nhưng không chứa mã phòng, token, người chơi hoặc điểm số. Khi nhập file, ứng dụng kiểm tra chặt định dạng và hỏi xác nhận trước khi thay thế nội dung đang mở. File đã tải xuống do người dùng tự quản lý và ứng dụng không thể tự xóa file đó.
+Ứng dụng không có replay, lịch sử, thư viện quiz trên máy chủ, leaderboard vĩnh viễn, email/số điện thoại, quảng cáo hay analytics SDK. Media câu hỏi là object private sống tối đa một ngày; capability builder không vào game, log hay file export. Người tạo có thể tải `.dkt.json` tối đa 512 KiB hoặc `.dkt.zip` media tối đa 50 MiB; import kiểm tra đường dẫn ZIP, số member, kiểu nén, CRC, SHA-256, MIME và giới hạn media trước khi cấp asset ID mới. File đã tải xuống do người dùng tự quản lý và ứng dụng không thể tự xóa file đó.
 
 Bản nháp builder trong trình duyệt chỉ tồn tại trong phiên tab và bị xóa sau create-room. Raw short-answer text chỉ tồn tại đủ lâu để normalize/so sánh và không được ghi vào storage. Token server-side chỉ được lưu dưới SHA-256 hash.
 
@@ -95,9 +100,9 @@ Game SPA routes trên `game.dokinhthanh.io.vn`:
 | `/screen/:roomCode` | Màn hình trình chiếu read-only |
 | `/privacy` | Legacy; direct request redirect về policy public trên apex |
 
-HTTP chỉ dùng cho create, public metadata, join, one-time WebSocket ticket, optional leave và health:
+HTTP dùng cho room lifecycle, Scripture read APIs, AI suggestions, private media và health:
 
-`POST /api/rooms`, `GET /api/rooms/:code/public`, `POST /api/rooms/:code/join`, `POST /api/rooms/:code/ws-ticket`, `GET /api/rooms/:code/ws`, `POST /api/rooms/:code/leave`, `GET /api/health`.
+`POST /api/rooms`, `GET /api/rooms/:code/public`, `POST /api/rooms/:code/join`, `POST /api/rooms/:code/ws-ticket`, `GET /api/rooms/:code/ws`, `POST /api/rooms/:code/leave`, `GET /api/scripture/*`, `POST /api/question-suggestions`, `/api/question-media/*`, `GET /api/health`.
 
 Host/screen bootstrap token nằm trong URL fragment, được chuyển ngay vào `sessionStorage` rồi xóa khỏi URL. Host có thể chủ động sao chép lại recovery URL chứa fragment; URL này là secret toàn quyền và UI cảnh báo không chia sẻ công khai. Long-lived token không vào WebSocket query; query chỉ mang one-time ticket role/room/session-bound, sống khoảng 30 giây và bị xóa khi dùng lần đầu.
 
@@ -114,7 +119,7 @@ bun install
 bun run dev
 ```
 
-Local development không cần Turnstile. Đặt `APP_ENV=development` trong `.dev.vars` nếu cần cấu hình rõ. Không commit `.dev.vars`.
+Local development không cần Turnstile. Đặt `APP_ENV=development` trong `.dev.vars` nếu cần cấu hình rõ. Không commit `.dev.vars`. Các feature YouVersion/AI/media mặc định tắt; xem [runbook triển khai](docs/QUESTION_INTELLIGENCE_OPERATIONS.md).
 
 ### Turnstile tùy chọn cho production
 
@@ -159,7 +164,7 @@ bun run check:free-tier
 bun run deploy
 ```
 
-`bun run deploy` build và deploy cả Worker lẫn Static Assets thành một ứng dụng. Lần deploy đầu áp dụng migration `new_sqlite_classes: ["GameRoom"]`. Đích zero-domain-cost là:
+`bun run deploy` build và deploy cả Worker lẫn Static Assets thành một ứng dụng. Migration `v1` tạo `GameRoom`; migration `v2` tạo `GenerationGate` chỉ lưu bộ đếm quota không chứa nội dung. Đích zero-domain-cost là:
 
 ```text
 https://do-kinh-thanh-live.<your-subdomain>.workers.dev
@@ -179,7 +184,9 @@ Workflow `Deploy production` tự chạy sau CI trên `main` khi environment `pr
 - CSP, `frame-ancestors`, Referrer Policy, Permissions Policy, nosniff và `no-store` cho API.
 - PWA precache chỉ shell/versioned assets; `/api/*` luôn NetworkOnly và dynamic room data không cache.
 - PWA có favicon, icon PNG 192/512, maskable icon và Apple Touch icon sinh từ logo local.
-- Không log câu hỏi, đáp án, tên người chơi hoặc secret.
+- YouVersion/OpenAI chỉ được gọi từ Worker; Responses dùng strict JSON Schema, `store:false`, không tools/web.
+- Media kiểm tra signature/kích thước/thời lượng, loại metadata, moderation/transcription, private R2 và URL HMAC theo phòng.
+- Không log câu hỏi, nội dung Kinh Thánh, đáp án, media/transcript, tên người chơi, IP thô, capability hoặc secret.
 
 ## Giới hạn thực tế
 

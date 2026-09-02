@@ -20,6 +20,21 @@ export function createItem(type: GameItemType): GameItem {
       correctOptionId: first,
     };
   }
+  if (type === "MULTIPLE_CHOICE") {
+    const first = newId("option");
+    const second = newId("option");
+    return {
+      id,
+      type,
+      prompt: "Những ai là con trai của Nô-ê? Chọn tất cả đáp án đúng.",
+      options: [
+        { id: first, text: "Sem" },
+        { id: second, text: "Cham" },
+        { id: newId("option"), text: "Áp-ra-ham" },
+      ],
+      correctOptionIds: [first, second],
+    };
+  }
   if (type === "TRUE_FALSE") {
     return { id, type, statement: "Nô-ê đã đóng một con tàu.", correctValue: true };
   }
@@ -75,6 +90,14 @@ export function duplicateItem(item: GameItem): GameItem {
       id: idMap.get(option.id) as string,
     }));
     copy.correctOptionId = idMap.get(copy.correctOptionId) as string;
+  }
+  if (copy.type === "MULTIPLE_CHOICE") {
+    const idMap = new Map(copy.options.map((option) => [option.id, newId("option")]));
+    copy.options = copy.options.map((option) => ({
+      ...option,
+      id: idMap.get(option.id) as string,
+    }));
+    copy.correctOptionIds = copy.correctOptionIds.map((id) => idMap.get(id) as string);
   }
   if (copy.type === "CROSSWORD")
     copy.horizontalRows = copy.horizontalRows.map((row) => ({ ...row, id: newId("row") }));

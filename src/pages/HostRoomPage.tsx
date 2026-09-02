@@ -10,10 +10,11 @@ import {
   Radio,
   Trash2,
   Users,
+  Volume2,
   Wifi,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Brand } from "../components/shared/Brand";
 import { ConnectionBanner } from "../components/shared/ConnectionBanner";
@@ -24,6 +25,7 @@ import { PrivacyNotice } from "../components/shared/PrivacyNotice";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { CrosswordBoard } from "../features/crossword/CrosswordBoard";
 import { useGameFeedback } from "../features/feedback/useGameFeedback";
+import { RuntimeQuestionMedia } from "../features/media/QuestionMedia";
 import { useRoomRealtime } from "../features/realtime/useRoomRealtime";
 import { bootstrapFragmentToken, clearSession, readSession } from "../lib/session";
 
@@ -33,6 +35,8 @@ export function HostRoomPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [recoveryCopied, setRecoveryCopied] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundContext = useRef<AudioContext | null>(null);
   const realtime = useRoomRealtime({
     roomCode: code,
     role: "HOST",
@@ -63,6 +67,15 @@ export function HostRoomPage() {
     await navigator.clipboard.writeText(recoveryUrl);
     setRecoveryCopied(true);
     window.setTimeout(() => setRecoveryCopied(false), 2_000);
+  };
+  const enableSound = async () => {
+    try {
+      soundContext.current ??= new AudioContext();
+      await soundContext.current.resume();
+      setSoundEnabled(true);
+    } catch {
+      setSoundEnabled(false);
+    }
   };
   const control = () => {
     if (!room) return null;
@@ -207,6 +220,14 @@ export function HostRoomPage() {
                       <KeyRound />
                       {recoveryCopied ? "Đã sao chép link bí mật" : "Sao chép link khôi phục host"}
                     </button>
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => void enableSound()}
+                      aria-pressed={soundEnabled}
+                    >
+                      <Volume2 /> {soundEnabled ? "Âm thanh đã bật" : "Bật âm thanh"}
+                    </button>
                     <small className="secret-hint" role="status">
                       Link này có toàn quyền điều khiển phòng. Chỉ lưu hoặc gửi riêng cho người dẫn.
                     </small>
@@ -215,7 +236,15 @@ export function HostRoomPage() {
                 <PrivacyNotice />
               </div>
             ) : (
-              <HostGameStage room={room} offset={realtime.serverOffsetMs} />
+              <HostGameStage
+                room={room}
+                offset={realtime.serverOffsetMs}
+                onMediaReady={(mode) => {
+                  const roundId = room.currentRound?.roundId;
+                  if (roundId)
+                    realtime.send({ type: "host.media_ready", payload: { roundId, mode } });
+                }}
+              />
             )}
             <div className="host-controls">
               {control()}
@@ -288,9 +317,11 @@ export function HostRoomPage() {
 function HostGameStage({
   room,
   offset,
+  onMediaReady,
 }: {
   room: NonNullable<ReturnType<typeof useRoomRealtime>["snapshot"]>;
   offset: number;
+  onMediaReady: (mode: "READY" | "FALLBACK") => void;
 }) {
   if (room.phase === "COUNTDOWN")
     return (
@@ -322,6 +353,39 @@ function HostGameStage({
         <p>Mọi dữ liệu tạm thời của phòng đã được xóa.</p>
       </div>
     );
+  if (room.phase === "MEDIA_PREPARE")
+    return (
+      <div className="stage centered media-prepare-stage">
+        <span className="eyebrow">Đang trình bày media câu {room.currentRoundIndex + 1}</span>
+        <RuntimeQuestionMedia
+          media={room.currentRound?.publicPayload.media}
+          autoPlay
+          onReady={() => onMediaReady("READY")}
+          onFailure={() => onMediaReady("FALLBACK")}
+        />
+        <h1>{room.currentRound?.publicPayload.prompt}</h1>
+        {room.answerOpenedAt ? (
+          <>
+            <p>Đồng hồ trả lời sẽ bắt đầu sau phần media.</p>
+            <Countdown deadline={room.answerOpenedAt} offset={offset} />
+          </>
+        ) : (
+          <>
+            <p>
+              Đang chờ media sẵn sàng. Nếu trình duyệt chặn âm thanh, hãy nhấn phát hoặc dùng nội
+              dung thay thế.
+            </p>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => onMediaReady("FALLBACK")}
+            >
+              Dùng nội dung thay thế
+            </button>
+          </>
+        )}
+      </div>
+    );
   return (
     <div className="stage">
       <div className="round-meta">
@@ -336,6 +400,7 @@ function HostGameStage({
           </span>
         )}
       </div>
+      <RuntimeQuestionMedia media={room.currentRound?.publicPayload.media} />
       <h1>{room.currentRound?.publicPayload.prompt}</h1>
       <CrosswordBoard snapshot={room} />
       {room.currentRound?.publicPayload.options ? (

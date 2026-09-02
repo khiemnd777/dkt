@@ -11,7 +11,15 @@ declare global {
 
 const SCRIPT_ID = "cloudflare-turnstile-script";
 
-export function Turnstile({ onToken }: { onToken: (token?: string) => void }) {
+export function Turnstile({
+  onToken,
+  action = "create-room",
+  label = "Xác minh tạo phòng",
+}: {
+  onToken: (token?: string) => void;
+  action?: string;
+  label?: string;
+}) {
   const sitekey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
   const container = useRef<HTMLFieldSetElement>(null);
   useEffect(() => {
@@ -22,7 +30,7 @@ export function Turnstile({ onToken }: { onToken: (token?: string) => void }) {
       if (cancelled || !container.current || !window.turnstile) return;
       widgetId = window.turnstile.render(container.current, {
         sitekey,
-        action: "create-room",
+        action,
         callback: (token: string) => onToken(token),
         "expired-callback": () => onToken(undefined),
         "error-callback": () => onToken(undefined),
@@ -45,7 +53,7 @@ export function Turnstile({ onToken }: { onToken: (token?: string) => void }) {
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [sitekey, onToken]);
+  }, [action, sitekey, onToken]);
   if (!sitekey) return null;
-  return <fieldset className="turnstile" ref={container} aria-label="Xác minh tạo phòng" />;
+  return <fieldset className="turnstile" ref={container} aria-label={label} />;
 }

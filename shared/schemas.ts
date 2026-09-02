@@ -18,11 +18,91 @@ const optionalPlain = (max: number) => plain(1, max).optional();
 const duration = z.number().int().min(LIMITS.minDurationSec).max(LIMITS.maxDurationSec);
 const aliases = z.array(plain(1, 120)).max(LIMITS.maxAliases).default([]);
 
+const mediaRightsSchema = z
+  .object({
+    source: z.enum(["USER_UPLOAD", "APP_OWNED"]),
+    attestedByHost: z.literal(true),
+    attribution: optionalPlain(500),
+  })
+  .strict();
+
+const mediaBase = {
+  assetId: identifier,
+  sha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  byteSize: z.number().int().positive().max(LIMITS.maxQuestionAudioBytes),
+  accessibilityText: plain(1, 500),
+  rights: mediaRightsSchema,
+};
+
+export const questionMediaRefSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      ...mediaBase,
+      kind: z.literal("IMAGE"),
+      mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+      byteSize: z.number().int().positive().max(LIMITS.maxQuestionImageBytes),
+      width: z.number().int().positive().max(LIMITS.maxQuestionImageDimension),
+      height: z.number().int().positive().max(LIMITS.maxQuestionImageDimension),
+      durationMs: z.undefined().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      ...mediaBase,
+      kind: z.literal("AUDIO"),
+      mimeType: z.literal("audio/mpeg"),
+      durationMs: z.number().int().positive().max(LIMITS.maxQuestionAudioDurationMs),
+      width: z.undefined().optional(),
+      height: z.undefined().optional(),
+    })
+    .strict(),
+]);
+
+export const questionPresentationSchema = z
+  .object({ media: questionMediaRefSchema.optional() })
+  .strict();
+
+export const scriptureEvidenceMetadataSchema = z
+  .object({
+    provider: z.literal("youversion"),
+    bibleVersionId: z.number().int().positive(),
+    versionAbbreviation: plain(1, 40),
+    passageId: plain(1, 80),
+    evidencePassageIds: z.array(plain(1, 80)).min(1).max(40),
+    localizedReference: plain(1, 160),
+    attribution: plain(1, 1_000),
+    sourceContentSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+    containsExactQuotation: z.boolean(),
+  })
+  .strict();
+
+export const generationProvenanceSchema = z
+  .object({
+    source: z.literal("AI_ASSISTED"),
+    provider: z.literal("openai"),
+    model: plain(1, 80),
+    promptVersion: plain(1, 80),
+    strategyVersion: plain(1, 80),
+    generatedAt: z.string().datetime(),
+    validatedAt: z.string().datetime(),
+    humanApprovedAt: z.string().datetime(),
+    confidence: z.number().min(0).max(1),
+    validationReceipt: z
+      .string()
+      .max(2_048)
+      .regex(/^[A-Za-z0-9._-]+$/u)
+      .optional(),
+  })
+  .strict();
+
 const base = {
   id: identifier,
   durationSec: duration.optional(),
   bibleReference: optionalPlain(120),
   explanation: optionalPlain(500),
+  presentation: questionPresentationSchema.optional(),
+  scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+  generationProvenance: generationProvenanceSchema.optional(),
 };
 
 export const singleChoiceItemSchema = z
@@ -55,6 +135,61 @@ export const singleChoiceItemSchema = z
     }
   });
 
+export const multipleChoiceItemSchema = z
+  .object({
+    ...base,
+    type: z.literal("MULTIPLE_CHOICE"),
+    prompt: plain(1, 300),
+    options: z
+      .array(z.object({ id: identifier, text: plain(1, 120) }).strict())
+      .min(LIMITS.minMultipleChoiceOptions)
+      .max(LIMITS.maxChoiceOptions),
+    correctOptionIds: z
+      .array(identifier)
+      .min(2)
+      .max(LIMITS.maxChoiceOptions - 1),
+  })
+  .strict()
+  .superRefine((item, context) => {
+    const optionIds = item.options.map((option) => option.id);
+    const optionTexts = item.options.map((option) => option.text.trim().toLocaleUpperCase("vi"));
+    if (new Set(optionIds).size !== optionIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "ID lựa chọn không được trùng.",
+      });
+    }
+    if (new Set(optionTexts).size !== optionTexts.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "Các lựa chọn không được trùng nhau.",
+      });
+    }
+    if (new Set(item.correctOptionIds).size !== item.correctOptionIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["correctOptionIds"],
+        message: "Đáp án đúng không được trùng.",
+      });
+    }
+    if (item.correctOptionIds.some((id) => !optionIds.includes(id))) {
+      context.addIssue({
+        code: "custom",
+        path: ["correctOptionIds"],
+        message: "Mọi đáp án đúng phải thuộc danh sách lựa chọn.",
+      });
+    }
+    if (item.correctOptionIds.length >= item.options.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["correctOptionIds"],
+        message: "Phải có ít nhất một lựa chọn sai.",
+      });
+    }
+  });
+
 export const trueFalseItemSchema = z
   .object({
     ...base,
@@ -83,6 +218,9 @@ export const crosswordRowSchema = z
     specialCellIndex: z.number().int().min(0),
     bibleReference: optionalPlain(120),
     explanation: optionalPlain(500),
+    presentation: questionPresentationSchema.optional(),
+    scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+    generationProvenance: generationProvenanceSchema.optional(),
   })
   .strict()
   .superRefine((row, context) => {
@@ -110,6 +248,9 @@ export const crosswordItemSchema = z
       .max(LIMITS.maxCrosswordRows),
     bibleReference: optionalPlain(120),
     explanation: optionalPlain(500),
+    presentation: questionPresentationSchema.optional(),
+    scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+    generationProvenance: generationProvenanceSchema.optional(),
   })
   .strict()
   .superRefine((item, context) => {
@@ -152,6 +293,7 @@ export const crosswordItemSchema = z
 
 export const gameItemSchema = z.discriminatedUnion("type", [
   singleChoiceItemSchema,
+  multipleChoiceItemSchema,
   trueFalseItemSchema,
   shortAnswerItemSchema,
   crosswordItemSchema,
@@ -168,7 +310,20 @@ export const gameDefinitionSchema = z
   .strict();
 
 export const createRoomSchema = z
-  .object({ game: gameDefinitionSchema, turnstileToken: z.string().max(4096).optional() })
+  .object({
+    game: gameDefinitionSchema,
+    turnstileToken: z.string().max(4096).optional(),
+    mediaCapabilities: z.record(identifier, z.string().min(20).max(512)).optional(),
+  })
+  .strict();
+
+export const initializeRoomSchema = z
+  .object({
+    game: gameDefinitionSchema,
+    roomMediaUrls: z
+      .record(identifier, z.string().startsWith("/api/rooms/").max(1_024))
+      .default({}),
+  })
   .strict();
 export const joinRoomSchema = z
   .object({

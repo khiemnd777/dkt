@@ -54,13 +54,16 @@ const wrangler = JSON.parse(
 for (const key of [
   "d1_databases",
   "kv_namespaces",
-  "r2_buckets",
   "queues",
   "workflows",
   "hyperdrive",
   "containers",
 ]) {
   if (key in wrangler) fail(`Forbidden Wrangler binding: ${key}`);
+}
+const r2Buckets = wrangler.r2_buckets as Array<{ binding?: unknown }> | undefined;
+if (r2Buckets?.length !== 1 || r2Buckets[0]?.binding !== "QUESTION_MEDIA") {
+  fail("The only allowed R2 binding is the short-lived QUESTION_MEDIA bucket.");
 }
 
 const migrations = wrangler.migrations as Array<Record<string, unknown>> | undefined;
@@ -72,6 +75,15 @@ if (
   )
 ) {
   fail("GameRoom must use a new_sqlite_classes migration.");
+}
+if (
+  !migrations?.some(
+    (migration) =>
+      Array.isArray(migration.new_sqlite_classes) &&
+      migration.new_sqlite_classes.includes("GenerationGate"),
+  )
+) {
+  fail("GenerationGate must use a new_sqlite_classes migration.");
 }
 const assets = wrangler.assets as
   | { binding?: unknown; run_worker_first?: unknown; not_found_handling?: unknown }
@@ -152,6 +164,12 @@ if (!workerCandidates.length) {
 }
 
 const staticFiles = filesUnder("dist/client");
+const forbiddenBuildSecrets = filesUnder("dist").filter((path) =>
+  /\/(?:\.dev\.vars|\.env(?:\..*)?)$/u.test(path),
+);
+if (forbiddenBuildSecrets.length > 0) {
+  fail("Local environment or secret files must never remain in the deploy artifact.");
+}
 const initialJavaScript = initialClientJavaScript();
 notes.push(`Generated static assets: ${staticFiles.length}`);
 if (initialJavaScript.files.length === 0) {
@@ -164,10 +182,11 @@ if (initialJavaScript.files.length === 0) {
     fail("Initial game JavaScript exceeds the 100 KiB gzip safety target.");
   }
 }
-notes.push("Forbidden bindings: none detected");
+notes.push("Persistent database/queue bindings: none detected");
+notes.push("Question media: one private short-lived R2 binding");
 notes.push("Selective Worker routing: API, canonical public HTML and operational game routes");
 notes.push("Public unknown-route policy: no global SPA fallback");
-notes.push("Durable Object storage: SQLite-backed migration");
+notes.push("Durable Object storage: SQLite-backed GameRoom and content-free GenerationGate");
 
 for (const note of notes) console.info(`✓ ${note}`);
 if (failures.length) {

@@ -65,3 +65,23 @@ export const crosswordGame: GameDefinition = {
     },
   ],
 };
+
+export const multipleChoiceGame: GameDefinition = {
+  title: "Gia đình Nô-ê",
+  mode: "TURN_BASED",
+  defaultDurationSec: 20,
+  createdClientVersion: "test",
+  items: [
+    {
+      id: "multiple-1",
+      type: "MULTIPLE_CHOICE",
+      prompt: "Những ai là con trai của Nô-ê?",
+      options: [
+        { id: "shem", text: "Sem" },
+        { id: "ham", text: "Cham" },
+        { id: "abraham", text: "Áp-ra-ham" },
+      ],
+      correctOptionIds: ["shem", "ham"],
+    },
+  ],
+};

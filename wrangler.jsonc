@@ -52,6 +52,10 @@
       {
         "name": "GAME_ROOMS",
         "class_name": "GameRoom"
+      },
+      {
+        "name": "GENERATION_GATES",
+        "class_name": "GenerationGate"
       }
     ]
   },
@@ -59,10 +63,31 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["GameRoom"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["GenerationGate"]
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "QUESTION_MEDIA",
+      "bucket_name": "do-kinh-thanh-question-media",
+      "preview_bucket_name": "do-kinh-thanh-question-media-preview"
     }
   ],
   "vars": {
     "APP_ENV": "production",
-    "TURNSTILE_EXPECTED_ACTION": "create-room"
+    "TURNSTILE_EXPECTED_ACTION": "create-room",
+    "TURNSTILE_GENERATION_ACTION": "question-generation",
+    "SCRIPTURE_PROVIDER_ENABLED": "false",
+    "AI_QUESTION_SUGGESTIONS_ENABLED": "false",
+    "AI_AUTO_BALANCE_ENABLED": "false",
+    "QUESTION_MEDIA_ENABLED": "false",
+    "AI_MEDIA_ANALYSIS_ENABLED": "false",
+    "YVP_ALLOWED_BIBLE_IDS": "",
+    "OPENAI_GENERATION_MODEL": "gpt-5.6-terra",
+    "OPENAI_REVIEW_MODEL": "gpt-5.6-sol",
+    "OPENAI_TRANSCRIPTION_MODEL": "gpt-transcribe"
   }
 }

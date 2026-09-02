@@ -5,6 +5,15 @@ export function isCorrectAnswer(round: RuntimeRound, answer: PlayerAnswer): bool
   const expected = round.privateAnswer;
   if (expected.type === "OPTION" && answer.type === "OPTION")
     return expected.optionId === answer.optionId;
+  if (expected.type === "OPTIONS" && answer.type === "OPTIONS") {
+    const submitted = Array.from(new Set(answer.optionIds)).sort();
+    const correct = Array.from(new Set(expected.optionIds)).sort();
+    return (
+      submitted.length === answer.optionIds.length &&
+      submitted.length === correct.length &&
+      submitted.every((value, index) => value === correct[index])
+    );
+  }
   if (expected.type === "BOOLEAN" && answer.type === "BOOLEAN")
     return expected.value === answer.value;
   if (expected.type === "TEXT" && answer.type === "TEXT") {

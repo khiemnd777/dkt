@@ -9,6 +9,7 @@ import { FeedbackToggle } from "../components/shared/FeedbackToggle";
 import { Leaderboard } from "../components/shared/Leaderboard";
 import { CrosswordBoard } from "../features/crossword/CrosswordBoard";
 import { useGameFeedback } from "../features/feedback/useGameFeedback";
+import { RuntimeQuestionMedia } from "../features/media/QuestionMedia";
 import { useRoomRealtime } from "../features/realtime/useRoomRealtime";
 import { formatCountdown, useCountdown } from "../hooks/useCountdown";
 import { bootstrapFragmentToken, clearSession } from "../lib/session";
@@ -138,6 +139,22 @@ function ScreenStage({ snapshot, offset }: { snapshot: RoomSnapshot; offset: num
         <p>Mọi dữ liệu tạm thời đã được xóa. Cảm ơn mọi người!</p>
       </section>
     );
+  if (snapshot.phase === "MEDIA_PREPARE")
+    return (
+      <section className="screen-stage centered media-prepare-stage">
+        <span className="screen-kicker">CÂU {snapshot.currentRoundIndex + 1}</span>
+        <RuntimeQuestionMedia media={snapshot.currentRound?.publicPayload.media} autoPlay />
+        <h1>{snapshot.currentRound?.publicPayload.prompt}</h1>
+        {snapshot.answerOpenedAt ? (
+          <>
+            <p>Thời gian trả lời sẽ bắt đầu sau phần media.</p>
+            <Countdown deadline={snapshot.answerOpenedAt} offset={offset} large />
+          </>
+        ) : (
+          <p>Đang chờ người dẫn xác nhận media sẵn sàng…</p>
+        )}
+      </section>
+    );
   return (
     <section className="screen-stage question-stage">
       <div className="screen-round-meta">
@@ -153,6 +170,7 @@ function ScreenStage({ snapshot, offset }: { snapshot: RoomSnapshot; offset: num
         )}
       </div>
       <CrosswordBoard snapshot={snapshot} large />
+      <RuntimeQuestionMedia media={snapshot.currentRound?.publicPayload.media} />
       <h1>{snapshot.currentRound?.publicPayload.prompt}</h1>
       {snapshot.currentRound?.publicPayload.options && !snapshot.reveal ? (
         <div className="screen-options">

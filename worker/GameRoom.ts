@@ -16,7 +16,7 @@ import type {
   SubmissionRecord,
   WebSocketTicket,
 } from "../shared/room";
-import { createRoomSchema, joinRoomSchema, ticketRequestSchema } from "../shared/schemas";
+import { initializeRoomSchema, joinRoomSchema, ticketRequestSchema } from "../shared/schemas";
 import { normalizeAnswer, normalizeDisplayName } from "../shared/text";
 import type { Env } from "./env";
 import { scheduleNextAlarm } from "./room/alarm-scheduler";
@@ -167,7 +167,7 @@ export class GameRoom extends DurableObject<Env> {
   private async initialize(request: Request): Promise<Response> {
     this.deleted = false;
     if (await this.ctx.storage.get(KEYS.meta)) return errorResponse("ROOM_COLLISION", 409);
-    const parsed = createRoomSchema.safeParse(await this.parseBody(request));
+    const parsed = initializeRoomSchema.safeParse(await this.parseBody(request));
     if (!parsed.success)
       return json(
         {
@@ -177,7 +177,7 @@ export class GameRoom extends DurableObject<Env> {
       );
     const roomCode = request.headers.get("x-room-code");
     if (!roomCode) throw new AppError("BAD_REQUEST", 400);
-    const rounds = compileGame(parsed.data.game);
+    const rounds = compileGame(parsed.data.game, parsed.data.roomMediaUrls);
     const hostToken = randomToken();
     const screenToken = randomToken();
     const now = Date.now();
@@ -473,6 +473,9 @@ export class GameRoom extends DurableObject<Env> {
       case "host.open_next_round":
         await this.startCountdown(state);
         break;
+      case "host.media_ready":
+        await this.activatePreparedMedia(state, message.payload.roundId, message.payload.mode);
+        break;
       case "host.pause_round":
         await this.pauseRound(state);
         break;
@@ -609,6 +612,9 @@ export class GameRoom extends DurableObject<Env> {
       phase: "COUNTDOWN",
       currentRoundIndex: nextIndex,
       countdownEndsAt: Date.now() + LIMITS.countdownMs,
+      mediaReadyDeadlineAt: undefined,
+      mediaStartAt: undefined,
+      answerOpenedAt: undefined,
       openedAt: undefined,
       deadlineAt: undefined,
       nextAction: "WAIT_FOR_QUESTION",
@@ -629,13 +635,68 @@ export class GameRoom extends DurableObject<Env> {
     });
   }
 
-  private async openRound(state: RoomState): Promise<void> {
+  private async beginMediaPrepare(state: RoomState): Promise<void> {
     if (state.progress.phase !== "COUNTDOWN") return;
-    assertTransition("COUNTDOWN", "QUESTION_OPEN");
+    const round = this.currentRound(state);
+    const media = round.publicPayload.media;
+    if (!media) return this.openRound(state);
+    assertTransition("COUNTDOWN", "MEDIA_PREPARE");
+    const now = Date.now();
+    state.progress.phase = "MEDIA_PREPARE";
+    state.progress.countdownEndsAt = undefined;
+    state.progress.mediaReadyDeadlineAt = now + LIMITS.mediaReadyTimeoutMs;
+    state.progress.mediaStartAt = undefined;
+    state.progress.answerOpenedAt = undefined;
+    state.progress.nextAction = "WAIT_FOR_MEDIA_READY";
+    state.meta.stateVersion += 1;
+    await this.ctx.storage.put({ [KEYS.meta]: state.meta, [KEYS.progress]: state.progress });
+    await scheduleNextAlarm(this.ctx.storage, state.meta, state.progress);
+    await this.broadcastEvent(state.meta, "round.media_started", {
+      round: filterRoundForPublic(round),
+      mediaReadyDeadlineAt: state.progress.mediaReadyDeadlineAt,
+    });
+  }
+
+  private async activatePreparedMedia(
+    state: RoomState,
+    roundId: string,
+    mode: "READY" | "FALLBACK",
+  ): Promise<void> {
+    if (state.progress.phase !== "MEDIA_PREPARE" || state.progress.answerOpenedAt) return;
+    const round = this.currentRound(state);
+    if (round.roundId !== roundId) throw new AppError("BAD_REQUEST", 400);
+    const now = Date.now();
+    const prepareMs =
+      mode === "FALLBACK"
+        ? 250
+        : round.publicPayload.media?.kind === "AUDIO"
+          ? (round.publicPayload.media.durationMs ?? 0)
+          : LIMITS.imagePrepareMs;
+    state.progress.mediaReadyDeadlineAt = undefined;
+    state.progress.mediaStartAt = now;
+    state.progress.answerOpenedAt = now + Math.max(prepareMs, 250);
+    state.progress.nextAction = "WAIT_FOR_MEDIA";
+    state.meta.stateVersion += 1;
+    await this.ctx.storage.put({ [KEYS.meta]: state.meta, [KEYS.progress]: state.progress });
+    await scheduleNextAlarm(this.ctx.storage, state.meta, state.progress);
+    await this.broadcastEvent(state.meta, "round.media_started", {
+      round: filterRoundForPublic(round),
+      mediaStartAt: state.progress.mediaStartAt,
+      answerOpenedAt: state.progress.answerOpenedAt,
+      fallback: mode === "FALLBACK",
+    });
+  }
+
+  private async openRound(state: RoomState): Promise<void> {
+    if (state.progress.phase !== "COUNTDOWN" && state.progress.phase !== "MEDIA_PREPARE") return;
+    assertTransition(state.progress.phase, "QUESTION_OPEN");
     const round = this.currentRound(state);
     const now = Date.now();
     state.progress.phase = "QUESTION_OPEN";
     state.progress.countdownEndsAt = undefined;
+    state.progress.mediaReadyDeadlineAt = undefined;
+    state.progress.mediaStartAt = undefined;
+    state.progress.answerOpenedAt = undefined;
     state.progress.openedAt = now;
     state.progress.deadlineAt = now + round.durationSec * 1000;
     state.progress.pausedRemainingMs = undefined;
@@ -1108,6 +1169,9 @@ export class GameRoom extends DurableObject<Env> {
       openedAt: state.progress.openedAt,
       deadlineAt: state.progress.deadlineAt,
       countdownEndsAt: state.progress.countdownEndsAt,
+      mediaReadyDeadlineAt: state.progress.mediaReadyDeadlineAt,
+      mediaStartAt: state.progress.mediaStartAt,
+      answerOpenedAt: state.progress.answerOpenedAt,
       pausedRemainingMs: state.progress.pausedRemainingMs,
       currentRound:
         round && state.progress.phase !== "LOBBY" ? filterRoundForPublic(round) : undefined,
@@ -1332,6 +1396,22 @@ export class GameRoom extends DurableObject<Env> {
       state.progress.phase === "COUNTDOWN" &&
       state.progress.countdownEndsAt &&
       now >= state.progress.countdownEndsAt
+    ) {
+      await this.beginMediaPrepare(state);
+      return;
+    }
+    if (
+      state.progress.phase === "MEDIA_PREPARE" &&
+      state.progress.mediaReadyDeadlineAt &&
+      now >= state.progress.mediaReadyDeadlineAt
+    ) {
+      await this.activatePreparedMedia(state, this.currentRound(state).roundId, "FALLBACK");
+      return;
+    }
+    if (
+      state.progress.phase === "MEDIA_PREPARE" &&
+      state.progress.answerOpenedAt &&
+      now >= state.progress.answerOpenedAt
     ) {
       await this.openRound(state);
       return;

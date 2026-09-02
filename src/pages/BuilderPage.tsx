@@ -12,7 +12,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { GameDefinition, GameItem, GameItemType, GameMode } from "@shared/game";
+import type {
+  BuilderMediaHandle,
+  GameDefinition,
+  GameItem,
+  GameItemType,
+  GameMode,
+} from "@shared/game";
 import { LIMITS } from "@shared/limits";
 import { gameDefinitionSchema, gameItemSchema } from "@shared/schemas";
 import {
@@ -34,12 +40,19 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { createItem, duplicateItem } from "../features/builder/factories";
 import {
   gameConfigFilename,
+  gameHasMedia,
   MAX_GAME_CONFIG_BYTES,
   parseGameConfig,
   serializeGameConfig,
 } from "../features/builder/gameConfig";
+import {
+  createGamePackage,
+  gamePackageFilename,
+  importGamePackage,
+} from "../features/builder/gamePackage";
 import { ItemEditor } from "../features/builder/ItemEditor";
 import { Preview } from "../features/builder/Preview";
+import { QuestionSuggestionsPanel } from "../features/builder/QuestionSuggestionsPanel";
 import { SortableQuestion } from "../features/builder/SortableQuestion";
 import {
   BUILDER_DRAFT_KEY,
@@ -48,11 +61,13 @@ import {
   loadBuilderSelectedItemId,
 } from "../features/builder/sessionDraft";
 import { Turnstile } from "../features/security/Turnstile";
+import type { RuntimeFeatures } from "../lib/api";
 import { api } from "../lib/api";
 import { saveSession } from "../lib/session";
 
 const itemChoices: Array<{ type: GameItemType; icon: string; title: string }> = [
-  { type: "SINGLE_CHOICE", icon: "🔷", title: "Trắc nghiệm" },
+  { type: "SINGLE_CHOICE", icon: "🔷", title: "Chọn một đáp án" },
+  { type: "MULTIPLE_CHOICE", icon: "☑️", title: "Chọn nhiều đáp án" },
   { type: "TRUE_FALSE", icon: "✓", title: "Đúng / Sai" },
   { type: "SHORT_ANSWER", icon: "✍️", title: "Trả lời ngắn" },
   { type: "CROSSWORD", icon: "▦", title: "Ô chữ Kinh Thánh" },
@@ -97,9 +112,18 @@ export function BuilderPage() {
   const [creating, setCreating] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>();
   const [created, setCreated] = useState(false);
+  const [mediaHandles, setMediaHandles] = useState<Record<string, BuilderMediaHandle>>({});
+  const [runtimeFeatures, setRuntimeFeatures] = useState<RuntimeFeatures>({
+    scripture: false,
+    questionSuggestions: false,
+    autoBalance: false,
+    questionMedia: false,
+    aiMediaAnalysis: false,
+  });
   const [pendingImport, setPendingImport] = useState<{
     game: GameDefinition;
     filename: string;
+    mediaHandles?: Record<string, BuilderMediaHandle>;
   }>();
   const [transferNotice, setTransferNotice] = useState<string>();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -118,6 +142,21 @@ export function BuilderPage() {
     window.addEventListener("beforeunload", protect);
     return () => window.removeEventListener("beforeunload", protect);
   }, [created]);
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .health()
+      .then((health) => {
+        if (active) setRuntimeFeatures(health.features);
+      })
+      .catch(() => {
+        // Fail closed: the manual builder remains fully usable without optional integrations.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const updateSelected = (next: GameItem) =>
     setItems((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -168,10 +207,15 @@ export function BuilderPage() {
 
   const downloadConfig = async () => {
     try {
-      const serialized = serializeGameConfig(game);
       const filename = gameConfigFilename(title);
-      const blob = new Blob([serialized], { type: "application/json;charset=utf-8" });
-      const file = new File([blob], filename, { type: "application/json" });
+      const hasMedia = gameHasMedia(game);
+      const blob = hasMedia
+        ? await createGamePackage(game, mediaHandles)
+        : new Blob([serializeGameConfig(game)], { type: "application/json;charset=utf-8" });
+      const exportFilename = hasMedia ? gamePackageFilename(filename) : filename;
+      const file = new File([blob], exportFilename, {
+        type: hasMedia ? "application/zip" : "application/json",
+      });
       const prefersNativeShare =
         navigator.maxTouchPoints > 0 ||
         /Android|iPhone|iPad|iPod|Mobile/u.test(navigator.userAgent);
@@ -202,7 +246,7 @@ export function BuilderPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = filename;
+      anchor.download = exportFilename;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -222,10 +266,19 @@ export function BuilderPage() {
     setTransferNotice(undefined);
     setIssues([]);
     try {
-      if (file.size > MAX_GAME_CONFIG_BYTES)
-        throw new Error("File cấu hình vượt quá giới hạn 512 KiB.");
-      const imported = parseGameConfig(await file.text());
-      setPendingImport({ game: imported, filename: file.name });
+      if (file.name.toLowerCase().endsWith(".dkt.zip") || file.type === "application/zip") {
+        const imported = await importGamePackage(file);
+        setPendingImport({
+          game: imported.game,
+          filename: file.name,
+          mediaHandles: imported.handles,
+        });
+      } else {
+        if (file.size > MAX_GAME_CONFIG_BYTES)
+          throw new Error("File cấu hình vượt quá giới hạn 512 KiB.");
+        const imported = parseGameConfig(await file.text());
+        setPendingImport({ game: imported, filename: file.name });
+      }
       setError(undefined);
     } catch (cause) {
       setPendingImport(undefined);
@@ -240,6 +293,7 @@ export function BuilderPage() {
     setMode(imported.mode);
     setDuration(imported.defaultDurationSec);
     setItems(imported.items);
+    setMediaHandles(pendingImport.mediaHandles ?? {});
     setSelectedId(imported.items[0].id);
     setShowTypes(false);
     setError(undefined);
@@ -270,7 +324,10 @@ export function BuilderPage() {
     setError(undefined);
     setIssues([]);
     try {
-      const room = await api.createRoom(result.data, turnstileToken);
+      const mediaCapabilities = Object.fromEntries(
+        Object.values(mediaHandles).map((handle) => [handle.media.assetId, handle.readCapability]),
+      );
+      const room = await api.createRoom(result.data, turnstileToken, mediaCapabilities);
       saveSession("HOST", room.roomCode, room.hostToken);
       saveSession("SCREEN", room.roomCode, room.screenToken);
       sessionStorage.removeItem(BUILDER_DRAFT_KEY);
@@ -365,10 +422,26 @@ export function BuilderPage() {
           <div className="mobile-item-label">
             Câu {items.indexOf(selected) + 1} / {items.length}
           </div>
-          <ItemEditor item={selected} update={updateSelected} />
+          <ItemEditor
+            item={selected}
+            update={updateSelected}
+            mediaHandles={mediaHandles}
+            mediaEnabled={runtimeFeatures.questionMedia}
+            onMediaHandle={(handle) =>
+              setMediaHandles((current) => ({ ...current, [handle.media.assetId]: handle }))
+            }
+          />
         </section>
         <aside className="preview-sidebar">
-          <Preview item={selected} />
+          <Preview
+            item={selected}
+            mediaSources={Object.fromEntries(
+              Object.values(mediaHandles).map((handle) => [
+                handle.media.assetId,
+                `/api/question-media/${handle.media.assetId}?token=${encodeURIComponent(handle.readCapability)}`,
+              ]),
+            )}
+          />
           <div className="builder-settings">
             <label>
               Thời gian mặc định
@@ -383,6 +456,23 @@ export function BuilderPage() {
           </div>
         </aside>
       </div>
+      {runtimeFeatures.scripture && runtimeFeatures.questionSuggestions ? (
+        <QuestionSuggestionsPanel
+          existingItems={items}
+          mediaHandles={mediaHandles}
+          autoBalanceEnabled={runtimeFeatures.autoBalance}
+          mediaAnalysisEnabled={runtimeFeatures.aiMediaAnalysis}
+          onApprove={(item) => {
+            if (items.length >= LIMITS.maxItems) {
+              setError("Game đã đạt tối đa 50 mục.");
+              return;
+            }
+            setItems((current) => [...current, item]);
+            setSelectedId(item.id);
+            setError(undefined);
+          }}
+        />
+      ) : null}
       <div className="mode-section">
         <h2>Chọn cách tính điểm</h2>
         <div className="mode-cards">
@@ -456,7 +546,7 @@ export function BuilderPage() {
             ref={fileInput}
             hidden
             type="file"
-            accept=".json,application/json"
+            accept=".dkt.json,.dkt.zip,application/json,application/zip"
             aria-label="Chọn file cấu hình game"
             onChange={(event) => {
               void chooseConfig(event.target.files?.[0]);

@@ -3,6 +3,9 @@ import type { RoomMeta, RoomProgress } from "../../shared/room";
 export function nextAlarmAt(meta: RoomMeta, progress: RoomProgress): number | undefined {
   const deadlines = [meta.hardExpiresAt, meta.inactivityExpiresAt, meta.finishedDeleteAt];
   if (progress.phase === "COUNTDOWN") deadlines.push(progress.countdownEndsAt);
+  if (progress.phase === "MEDIA_PREPARE") {
+    deadlines.push(progress.mediaReadyDeadlineAt, progress.answerOpenedAt);
+  }
   if (progress.phase === "QUESTION_OPEN") deadlines.push(progress.deadlineAt);
   if (meta.finishedDeleteAt) deadlines.push(meta.finishedDeleteAt - 60_000);
   const now = Date.now();

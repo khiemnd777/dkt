@@ -5,7 +5,8 @@ import { gameItemSchema } from "@shared/schemas";
 import { CheckCircle2, Copy, GripVertical, Trash2, TriangleAlert } from "lucide-react";
 
 const labels: Record<GameItem["type"], string> = {
-  SINGLE_CHOICE: "Trắc nghiệm",
+  SINGLE_CHOICE: "Chọn một đáp án",
+  MULTIPLE_CHOICE: "Chọn nhiều đáp án",
   TRUE_FALSE: "Đúng / Sai",
   SHORT_ANSWER: "Trả lời ngắn",
   CROSSWORD: "Ô chữ Kinh Thánh",

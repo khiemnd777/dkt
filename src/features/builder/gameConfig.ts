@@ -1,10 +1,15 @@
 import type { GameDefinition } from "@shared/game";
 import { LIMITS } from "@shared/limits";
+import {
+  generationProvenanceSchema,
+  questionPresentationSchema,
+  scriptureEvidenceMetadataSchema,
+} from "@shared/schemas";
 import { isPlainText } from "@shared/text";
 import { z } from "zod";
 
 export const GAME_CONFIG_FORMAT = "do-kinh-thanh-live/game-config";
-export const GAME_CONFIG_VERSION = 1;
+export const GAME_CONFIG_VERSION = 2;
 export const MAX_GAME_CONFIG_BYTES = LIMITS.maxCreateBodyBytes;
 
 const identifier = z
@@ -22,6 +27,9 @@ const base = {
   durationSec: duration.optional(),
   bibleReference: optionalText(120),
   explanation: optionalText(500),
+  presentation: questionPresentationSchema.optional(),
+  scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+  generationProvenance: generationProvenanceSchema.optional(),
 };
 
 const draftItemSchema = z.discriminatedUnion("type", [
@@ -35,6 +43,18 @@ const draftItemSchema = z.discriminatedUnion("type", [
         .min(2)
         .max(4),
       correctOptionId: identifier,
+    })
+    .strict(),
+  z
+    .object({
+      ...base,
+      type: z.literal("MULTIPLE_CHOICE"),
+      prompt: text(300),
+      options: z
+        .array(z.object({ id: identifier, text: text(120) }).strict())
+        .min(LIMITS.minMultipleChoiceOptions)
+        .max(LIMITS.maxChoiceOptions),
+      correctOptionIds: z.array(identifier).max(LIMITS.maxChoiceOptions),
     })
     .strict(),
   z
@@ -74,6 +94,9 @@ const draftItemSchema = z.discriminatedUnion("type", [
               specialCellIndex: z.number().int().min(0).max(120),
               bibleReference: optionalText(120),
               explanation: optionalText(500),
+              presentation: questionPresentationSchema.optional(),
+              scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+              generationProvenance: generationProvenanceSchema.optional(),
             })
             .strict(),
         )
@@ -81,6 +104,9 @@ const draftItemSchema = z.discriminatedUnion("type", [
         .max(LIMITS.maxCrosswordRows),
       bibleReference: optionalText(120),
       explanation: optionalText(500),
+      presentation: questionPresentationSchema.optional(),
+      scriptureEvidence: scriptureEvidenceMetadataSchema.optional(),
+      generationProvenance: generationProvenanceSchema.optional(),
     })
     .strict(),
 ]);
@@ -95,7 +121,16 @@ export const builderDraftSchema = z
   })
   .strict();
 
-export const portableGameConfigSchema = z
+const portableGameConfigV1Schema = z
+  .object({
+    format: z.literal(GAME_CONFIG_FORMAT),
+    version: z.literal(1),
+    exportedAt: z.string().datetime(),
+    game: builderDraftSchema,
+  })
+  .strict();
+
+const portableGameConfigV2Schema = z
   .object({
     format: z.literal(GAME_CONFIG_FORMAT),
     version: z.literal(GAME_CONFIG_VERSION),
@@ -104,6 +139,11 @@ export const portableGameConfigSchema = z
   })
   .strict();
 
+export const portableGameConfigSchema = z.discriminatedUnion("version", [
+  portableGameConfigV1Schema,
+  portableGameConfigV2Schema,
+]);
+
 export type PortableGameConfig = z.infer<typeof portableGameConfigSchema>;
 
 function byteLength(value: string): number {
@@ -111,6 +151,9 @@ function byteLength(value: string): number {
 }
 
 export function serializeGameConfig(game: GameDefinition, exportedAt = new Date()): string {
+  if (gameHasMedia(game)) {
+    throw new Error("Game có hình ảnh hoặc âm thanh phải được xuất dưới dạng .dkt.zip.");
+  }
   const envelope: PortableGameConfig = {
     format: GAME_CONFIG_FORMAT,
     version: GAME_CONFIG_VERSION,
@@ -121,6 +164,15 @@ export function serializeGameConfig(game: GameDefinition, exportedAt = new Date(
   if (byteLength(serialized) > MAX_GAME_CONFIG_BYTES)
     throw new Error("Cấu hình vượt quá giới hạn 512 KiB.");
   return serialized;
+}
+
+export function gameHasMedia(game: GameDefinition): boolean {
+  return game.items.some(
+    (item) =>
+      Boolean(item.presentation?.media) ||
+      (item.type === "CROSSWORD" &&
+        item.horizontalRows.some((row) => Boolean(row.presentation?.media))),
+  );
 }
 
 export function parseGameConfig(serialized: string): GameDefinition {
@@ -134,7 +186,7 @@ export function parseGameConfig(serialized: string): GameDefinition {
   }
   const result = portableGameConfigSchema.safeParse(value);
   if (!result.success)
-    throw new Error("File không đúng định dạng cấu hình Đố Kinh Thánh Live phiên bản 1.");
+    throw new Error("File không đúng định dạng cấu hình Đố Kinh Thánh Live phiên bản 1 hoặc 2.");
   return result.data.game;
 }
 

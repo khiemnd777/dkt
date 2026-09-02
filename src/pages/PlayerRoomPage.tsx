@@ -11,6 +11,7 @@ import { Leaderboard } from "../components/shared/Leaderboard";
 import { PrivacyNotice } from "../components/shared/PrivacyNotice";
 import { CrosswordBoard } from "../features/crossword/CrosswordBoard";
 import { useGameFeedback } from "../features/feedback/useGameFeedback";
+import { RuntimeQuestionMedia } from "../features/media/QuestionMedia";
 import { useRoomRealtime } from "../features/realtime/useRoomRealtime";
 import { formatCountdown, useCountdown } from "../hooks/useCountdown";
 import { api } from "../lib/api";
@@ -94,6 +95,7 @@ function PlayerStage({
   send: ReturnType<typeof useRoomRealtime>["send"];
 }) {
   const [choice, setChoice] = useState<string>();
+  const [choices, setChoices] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [verticalOpen, setVerticalOpen] = useState(false);
@@ -103,6 +105,7 @@ function PlayerStage({
   const roundId = snapshot.currentRound?.roundId;
   useEffect(() => {
     setChoice(undefined);
+    setChoices([]);
     setText("");
     setSubmitting(false);
     setVerticalOpen(false);
@@ -210,9 +213,26 @@ function PlayerStage({
     );
   const round = snapshot.currentRound;
   if (!round) return <div className="loading-card">Đang tải câu hỏi…</div>;
+  if (snapshot.phase === "MEDIA_PREPARE")
+    return (
+      <div className="player-stage centered media-prepare-stage">
+        <span className="eyebrow">Chuẩn bị media câu hỏi</span>
+        <RuntimeQuestionMedia media={round.publicPayload.media} autoPlay />
+        {snapshot.answerOpenedAt ? (
+          <>
+            <p>Thời gian trả lời bắt đầu sau khi media trình bày xong.</p>
+            <Countdown deadline={snapshot.answerOpenedAt} offset={offset} />
+          </>
+        ) : (
+          <p>Đang chờ người dẫn xác nhận media sẵn sàng…</p>
+        )}
+      </div>
+    );
   const answerForSubmit = (): PlayerAnswer | undefined => {
     if (round.kind === "SINGLE_CHOICE")
       return choice ? { type: "OPTION", optionId: choice } : undefined;
+    if (round.kind === "MULTIPLE_CHOICE")
+      return choices.length >= 2 ? { type: "OPTIONS", optionIds: choices } : undefined;
     if (round.kind === "TRUE_FALSE")
       return choice ? { type: "BOOLEAN", value: choice === "true" } : undefined;
     return text.trim() ? { type: "TEXT", value: text.trim() } : undefined;
@@ -270,6 +290,7 @@ function PlayerStage({
         />
       </div>
       <CrosswordBoard snapshot={snapshot} />
+      <RuntimeQuestionMedia media={round.publicPayload.media} />
       <h1>{round.publicPayload.prompt}</h1>
       {snapshot.phase === "QUESTION_OPEN" ? (
         <form onSubmit={submit} className="answer-form">
@@ -282,15 +303,28 @@ function PlayerStage({
                       ? "true"
                       : "false"
                     : option.id;
+                const multipleSelected =
+                  round.kind === "MULTIPLE_CHOICE" && choices.includes(option.id);
                 return (
                   <button
                     type="button"
-                    className={choice === value ? "selected" : ""}
+                    className={choice === value || multipleSelected ? "selected" : ""}
                     disabled={snapshot.self?.submitted || submitting}
                     key={option.id}
-                    onClick={() => setChoice(value)}
+                    aria-pressed={round.kind === "MULTIPLE_CHOICE" ? multipleSelected : undefined}
+                    onClick={() => {
+                      if (round.kind === "MULTIPLE_CHOICE") {
+                        setChoices((current) =>
+                          current.includes(option.id)
+                            ? current.filter((id) => id !== option.id)
+                            : [...current, option.id],
+                        );
+                      } else {
+                        setChoice(value);
+                      }
+                    }}
                   >
-                    <span>{String.fromCharCode(65 + index)}</span>
+                    <span>{multipleSelected ? "✓" : String.fromCharCode(65 + index)}</span>
                     {option.text}
                   </button>
                 );
