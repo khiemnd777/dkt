@@ -2,11 +2,13 @@ import type { GameItem, GameMode } from "@shared/game";
 import { answerCells, normalizeAnswer } from "@shared/text";
 import {
   ArrowRight,
+  Check,
   CheckCircle2,
   Monitor,
   RotateCcw,
   Send,
   Smartphone,
+  X,
   XCircle,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
@@ -114,8 +116,12 @@ function StaticPreview({
         ) : null}
         {item.type === "TRUE_FALSE" ? (
           <div className="preview-options two">
-            <div>✓ Đúng</div>
-            <div>× Sai</div>
+            <div>
+              <Check /> Đúng
+            </div>
+            <div>
+              <X /> Sai
+            </div>
           </div>
         ) : null}
         {item.type === "SHORT_ANSWER" ? (

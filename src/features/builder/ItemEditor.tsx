@@ -1,7 +1,7 @@
 import type { BuilderMediaHandle, CrosswordItem, GameItem, QuestionMediaRef } from "@shared/game";
 import { LIMITS } from "@shared/limits";
 import { answerCells } from "@shared/text";
-import { Check, CirclePlus, Trash2 } from "lucide-react";
+import { Check, CirclePlus, Trash2, X } from "lucide-react";
 import { newId } from "./factories";
 import { QuestionMediaEditor } from "./QuestionMediaEditor";
 import { ScriptureReferenceField } from "./ScriptureReferenceField";
@@ -248,6 +248,7 @@ export function ItemEditor({
             <button
               className={item.correctValue ? "selected" : ""}
               type="button"
+              aria-pressed={item.correctValue}
               onClick={() => update({ ...item, correctValue: true })}
             >
               <Check /> Đúng
@@ -255,9 +256,10 @@ export function ItemEditor({
             <button
               className={!item.correctValue ? "selected" : ""}
               type="button"
+              aria-pressed={!item.correctValue}
               onClick={() => update({ ...item, correctValue: false })}
             >
-              × Sai
+              <X /> Sai
             </button>
           </div>
         </fieldset>

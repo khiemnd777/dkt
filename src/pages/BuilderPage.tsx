@@ -23,15 +23,23 @@ import { LIMITS } from "@shared/limits";
 import { gameDefinitionSchema, gameItemSchema } from "@shared/schemas";
 import {
   ArrowLeft,
+  BookOpenCheck,
   Check,
   ChevronDown,
+  CircleCheckBig,
+  CircleDot,
   Clock3,
   Download,
   Eye,
+  Grid3X3,
+  ListChecks,
+  type LucideIcon,
   Plus,
   Rocket,
   ShieldCheck,
+  TextCursorInput,
   Upload,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -65,12 +73,12 @@ import type { RuntimeFeatures } from "../lib/api";
 import { api } from "../lib/api";
 import { saveSession } from "../lib/session";
 
-const itemChoices: Array<{ type: GameItemType; icon: string; title: string }> = [
-  { type: "SINGLE_CHOICE", icon: "🔷", title: "Chọn một đáp án" },
-  { type: "MULTIPLE_CHOICE", icon: "☑️", title: "Chọn nhiều đáp án" },
-  { type: "TRUE_FALSE", icon: "✓", title: "Đúng / Sai" },
-  { type: "SHORT_ANSWER", icon: "✍️", title: "Trả lời ngắn" },
-  { type: "CROSSWORD", icon: "▦", title: "Ô chữ Kinh Thánh" },
+const itemChoices: Array<{ type: GameItemType; icon: LucideIcon; title: string }> = [
+  { type: "SINGLE_CHOICE", icon: CircleDot, title: "Chọn một đáp án" },
+  { type: "MULTIPLE_CHOICE", icon: ListChecks, title: "Chọn nhiều đáp án" },
+  { type: "TRUE_FALSE", icon: CircleCheckBig, title: "Đúng / Sai" },
+  { type: "SHORT_ANSWER", icon: TextCursorInput, title: "Trả lời ngắn" },
+  { type: "CROSSWORD", icon: Grid3X3, title: "Ô chữ Kinh Thánh" },
 ];
 
 function freshGame(): GameDefinition {
@@ -410,7 +418,9 @@ export function BuilderPage() {
               <div className="add-menu">
                 {itemChoices.map((choice) => (
                   <button type="button" key={choice.type} onClick={() => add(choice.type)}>
-                    <span>{choice.icon}</span>
+                    <span className="add-menu-icon">
+                      <choice.icon />
+                    </span>
                     {choice.title}
                   </button>
                 ))}
@@ -483,7 +493,9 @@ export function BuilderPage() {
             className={mode === "TURN_BASED" ? "selected" : ""}
             onClick={() => setMode("TURN_BASED")}
           >
-            <span className="mode-icon">📖</span>
+            <span className="mode-icon">
+              <BookOpenCheck />
+            </span>
             <span>
               <strong>Theo lượt câu hỏi</strong>
               <small>
@@ -497,7 +509,9 @@ export function BuilderPage() {
             className={mode === "SPEED_RACE" ? "selected" : ""}
             onClick={() => setMode("SPEED_RACE")}
           >
-            <span className="mode-icon">⚡</span>
+            <span className="mode-icon">
+              <Zap />
+            </span>
             <span>
               <strong>Đua tốc độ</strong>
               <small>

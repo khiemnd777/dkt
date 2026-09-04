@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, Gamepad2, Sparkles, Users } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Gamepad2, Sparkles, Trophy, Users } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Brand } from "../components/shared/Brand";
@@ -71,17 +71,23 @@ export function HomePage() {
         </div>
         <div className="hero-visual" aria-hidden="true">
           <div className="show-card card-one">
-            <span>📖</span>
+            <span className="show-card-icon">
+              <BookOpenCheck />
+            </span>
             <strong>Ai đã đánh bại Gô-li-át?</strong>
             <small>Câu 4 / 10</small>
           </div>
           <div className="show-card card-two">
-            <span>🏆</span>
+            <span className="show-card-icon">
+              <Trophy />
+            </span>
             <strong>1. An — 4.850</strong>
             <small>Bảng xếp hạng trực tiếp</small>
           </div>
           <div className="show-card card-three">
-            <Users />
+            <span className="show-card-icon">
+              <Users />
+            </span>
             <strong>24 người đã vào</strong>
             <small>Mã phòng · DKT234</small>
           </div>
